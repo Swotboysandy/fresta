@@ -39,3 +39,20 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Chrome automation profile (for Puppeteer)
+.chrome-automation-profile/
+.chrome-profiles/
+
+# Generated videos from Google Flow
+public/generated-videos/
+
+# Generated audio from AI Studio
+public/generated-audio/
+
+# Generated images from ImageFX
+public/generated-images/
+
+# Final merged videos
+public/final-videos/
+

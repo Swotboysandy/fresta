@@ -1,0 +1,31 @@
+# Core dependencies for AI YouTube Shorts Generator
+# Modified for Grok/Gemini support
+
+# Video processing
+moviepy==1.0.3
+opencv-python>=4.7.0
+imageio>=2.30.0
+imageio-ffmpeg>=0.4.9
+
+# Audio processing
+pydub>=0.25.1
+faster-whisper>=1.0.1
+
+# YouTube download
+pytubefix>=9.1.0
+
+# AI APIs
+requests>=2.31.0
+google-generativeai>=0.4.0
+
+# LangChain (optional, for OpenAI fallback)
+langchain>=0.3.0
+langchain-openai>=0.3.0
+openai>=1.0.0
+
+# Utilities
+python-dotenv>=1.0.0
+pydantic>=2.0.0
+numpy>=1.24.0
+pillow>=10.0.0
+tqdm>=4.65.0
