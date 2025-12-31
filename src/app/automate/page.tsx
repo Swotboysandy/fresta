@@ -38,11 +38,11 @@ interface ValidationResult {
     recommendations: string[];
 }
 
-// Fixed voice configuration - Kore (Female, Warm & Professional)
+// Fixed voice configuration - Edge TTS (High Quality, Free)
 const VOICE_CONFIG = {
     voiceName: "Kore",
-    displayName: "Kore (Hindi)",
-    description: "Female • Warm & Professional • Hindi Support",
+    displayName: "Edge TTS (High Quality)",
+    description: "Neural Voices • Free & Unlimited",
 };
 
 function AutomationContent() {
@@ -75,7 +75,7 @@ function AutomationContent() {
     const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
 
     // Settings
-    const [useAIStudioAudio, setUseAIStudioAudio] = useState(true);
+    const [useAIStudioAudio, setUseAIStudioAudio] = useState(false); // Kept as dummy for compatibility if needed, but unused
     const [skipAudio, setSkipAudio] = useState(false);
     const [addWatermark, setAddWatermark] = useState(true);
     const [watermarkText, setWatermarkText] = useState("StoryForge AI");
@@ -213,7 +213,7 @@ function AutomationContent() {
         }
     };
 
-    // STEP 2a: Generate Voice using Gemini API
+    // STEP 2: Generate Voice using Edge-TTS API (Free & Unlimited)
     const generateVoiceAPI = async (scene: Scene): Promise<string | null> => {
         try {
             const response = await fetch("/api/generate-voice", {
@@ -223,85 +223,38 @@ function AutomationContent() {
                     text: scene.content,
                     voiceName: VOICE_CONFIG.voiceName,
                     sceneId: scene.id,
-                    genre: genre, // Pass genre for voice styling
+                    genre: genre,
                 }),
             });
 
             const data = await response.json();
 
-            if (response.ok && data.audioData) {
-                // Convert base64 PCM to WAV blob URL
-                const binaryString = atob(data.audioData);
-                const bytes = new Uint8Array(binaryString.length);
-                for (let j = 0; j < binaryString.length; j++) {
-                    bytes[j] = binaryString.charCodeAt(j);
-                }
-                const wavBlob = pcmToWav(bytes);
-                const audioUrl = URL.createObjectURL(wavBlob);
-                return audioUrl;
-            }
-
-            // Check if rate limited
-            if (data.fallback || response.status === 503 || response.status === 429) {
-                // addLog(`   ⚠️ Scene ${scene.id}: API rate limited`); // SILENCED to avoid spam, main loop handles logging
-            }
-
-            return null;
-        } catch (err) {
-            addLog(`   ⚠️ Scene ${scene.id}: Audio generation error`);
-            return null;
-        }
-    };
-
-    // STEP 2b: Generate Voice using AI Studio browser automation (Puppeteer)
-    const generateVoiceStudio = async (scene: Scene): Promise<string | null> => {
-        try {
-            const response = await fetch("/api/generate-studio-puppeteer", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    text: scene.content,
-                    sceneId: scene.id,
-                }),
-            });
-            const data = await response.json();
-            if (data.success && data.audioUrl) {
+            if (response.ok && data.audioUrl) {
                 return data.audioUrl;
             }
-            throw new Error(data.error || "Puppeteer failed");
-        } catch (err: any) {
-            addLog(`   ⚠️ Scene ${scene.id}: Puppeteer error - ${err.message}`);
+
+            addLog(`   ⚠️ Scene ${scene.id}: API returned error: ${data.error}`);
+            return null;
+        } catch (err) {
+            addLog(`   ⚠️ Scene ${scene.id}: Audio generation network error`);
             return null;
         }
     };
 
     // STEP 2: Generate Voice for all scenes
     const generateAllVoices = async (scenesToProcess: Scene[]): Promise<void> => {
-        // Check if audio should be skipped
         if (skipAudio) {
             setStatus(prev => ({ ...prev, voice: "skipped" }));
             addLog(`⏭️ Audio generation SKIPPED (user preference)`);
-            addLog(`   💡 Videos will be generated without narration`);
-            // Mark all scenes as done (skipped)
-            setSceneProgress(prev => prev.map(sp => ({ ...sp, voiceStatus: "done" })));
             return;
         }
 
         setStatus(prev => ({ ...prev, voice: "generating" }));
         setCurrentStep("Generating voice narration...");
-
-        if (useAIStudioAudio) {
-            addLog(`🎙️ Starting voice generation via AI Studio (Browser)`);
-            addLog(`   📍 This will open Chrome and use your Google account`);
-            addLog(`   💡 Sign in if prompted - no rate limits!`);
-        } else {
-            addLog(`🎙️ Starting voice generation via Gemini API`);
-            addLog(`   💡 If API is rate limited, will auto-fallback to AI Studio browser`);
-        }
+        addLog(`🎙️ Starting unlimited voice generation (Edge-TTS)`);
 
         for (let i = 0; i < scenesToProcess.length; i++) {
             if (isPaused) {
-                addLog("⏸️ Paused...");
                 await new Promise(resolve => {
                     const checkPause = setInterval(() => {
                         if (!isPaused) {
@@ -317,7 +270,6 @@ function AutomationContent() {
             // Skip if already done
             const currentProgress = sceneProgress.find(sp => sp.sceneId === scene.id);
             if (currentProgress?.voiceStatus === "done") {
-                addLog(`⏭️ Scene ${i + 1}: Voice already ready, skipping...`);
                 continue;
             }
 
@@ -325,40 +277,22 @@ function AutomationContent() {
                 sp.sceneId === scene.id ? { ...sp, voiceStatus: "generating" } : sp
             ));
 
-            try {
-                let audioUrl: string | null = null;
-                let attempt = 1;
+            const audioUrl = await generateVoiceAPI(scene);
 
-                // Browser Automation (Puppeteer)
-                if (useAIStudioAudio) {
-                    audioUrl = await generateVoiceStudio(scene);
-                } else {
-                    // Fallback to manual? Or error?
-                    // User said "remove api part".
-                    // We'll throw error if they try to run without browser mode, forcing them to use it or manual.
-                    throw new Error("API mode disabled. Please enable 'Use AI Studio' or upload manually.");
-                }
-
-                if (audioUrl) {
-                    setSceneProgress(prev => prev.map(sp =>
-                        sp.sceneId === scene.id ? { ...sp, voiceStatus: "done", voiceUrl: audioUrl! } : sp
-                    ));
-                    addLog(`✅ Scene ${i + 1}: Voice ready`);
-                } else {
-                    throw new Error("Generation failed");
-                }
-
-            } catch (err: any) {
-                // if (err.message === "PAUSED_FOR_MANUAL_UPLOAD") throw err; // Logic removed
-
-                addLog(`❌ Scene ${i + 1}: Voice error - ${err}`);
+            if (audioUrl) {
+                setSceneProgress(prev => prev.map(sp =>
+                    sp.sceneId === scene.id ? { ...sp, voiceStatus: "done", voiceUrl: audioUrl } : sp
+                ));
+                addLog(`✅ Scene ${i + 1}: Voice ready`);
+            } else {
+                addLog(`❌ Scene ${i + 1}: Voice generation failed`);
                 setSceneProgress(prev => prev.map(sp =>
                     sp.sceneId === scene.id ? { ...sp, voiceStatus: "error" } : sp
                 ));
             }
 
-            // Delay
-            await new Promise(r => setTimeout(r, 1000));
+            // Small delay to be polite
+            await new Promise(r => setTimeout(r, 500));
         }
 
         setStatus(prev => ({ ...prev, voice: "done" }));
@@ -695,93 +629,7 @@ function AutomationContent() {
 
     return (
         <div className="min-h-screen flex flex-col bg-[var(--bg-primary)]">
-            {/* MANUAL UPLOAD MODAL */}
-            {manualUpload && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in">
-                    <div className="glass-panel p-8 max-w-lg w-full border border-[var(--accent-primary)]/50 shadow-2xl shadow-purple-500/20">
-                        <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-                            🎙️ Manual Voice Generation
-                        </h3>
-                        <p className="mb-4 text-sm text-[var(--text-muted)]">
-                            The API is currently rate-limited. Please generate the audio manually for <strong>Scene {manualUpload.id}: "{manualUpload.title}"</strong>.
-                        </p>
-
-                        <div className="bg-white/5 p-4 rounded-lg mb-6 border border-white/10">
-                            <p className="text-xs font-semibold text-[var(--accent-primary)] mb-2 uppercase tracking-wider">Step 1: Generate Audio</p>
-
-                            {/* Embedded Browser (Iframe) */}
-                            <div className="w-full h-80 bg-white/5 rounded border border-white/10 mb-4 overflow-hidden relative group">
-                                <iframe
-                                    src="https://aistudio.google.com/app/generate-speech?model=gemini-2.5-pro-preview-tts"
-                                    className="w-full h-full"
-                                    sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
-                                    title="AI Studio Integration"
-                                />
-                                {/* Overlay for fallback if blocked */}
-                                <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                                    <p className="text-white text-sm mb-2 text-center px-4">
-                                        If the page doesn't load here (due to Google security),<br />use the button below to open it externally.
-                                    </p>
-                                </div>
-                            </div>
-
-                            <a
-                                href="https://aistudio.google.com/app/generate-speech?model=gemini-2.5-pro-preview-tts"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center justify-center gap-2 text-sm text-white bg-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/80 transition-colors mb-6 p-3 rounded shadow-lg"
-                            >
-                                🔗 Open AI Studio in New Tab (Fallback)
-                                <span className="text-xs text-white/70 ml-1">External Link ↗</span>
-                            </a>
-
-                            <p className="text-xs font-semibold text-[var(--accent-primary)] mb-2 uppercase tracking-wider">Step 2: Copy & Generate</p>
-                            <div className="relative group">
-                                <textarea
-                                    readOnly
-                                    value={manualUpload.content}
-                                    className="input w-full h-24 text-sm font-mono text-[var(--text-muted)] bg-black/40 resize-none focus:ring-0 border-white/10"
-                                    onClick={(e) => {
-                                        (e.target as HTMLTextAreaElement).select();
-                                        navigator.clipboard.writeText(manualUpload.content);
-                                    }}
-                                />
-                                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <span className="text-xs bg-[var(--accent-primary)] text-white px-2 py-1 rounded">Click to Copy</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="space-y-4">
-                            <div>
-                                <p className="text-xs font-semibold text-[var(--accent-primary)] mb-2 uppercase tracking-wider">Step 3: Upload Result</p>
-                                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-[var(--glass-border)] rounded-lg cursor-pointer hover:border-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/5 transition-all group">
-                                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                                        <svg className="w-8 h-8 mb-3 text-[var(--text-muted)] group-hover:text-[var(--accent-primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
-                                        <p className="text-sm text-[var(--text-muted)]"><span className="font-semibold text-white">Click to upload</span> or drag and drop</p>
-                                        <p className="text-xs text-[var(--text-muted)] mt-1">WAV, MP3, or OGG</p>
-                                    </div>
-                                    <input
-                                        type="file"
-                                        accept="audio/*"
-                                        className="hidden"
-                                        onChange={(e) => {
-                                            if (e.target.files?.[0]) handleManualUpload(e.target.files[0]);
-                                        }}
-                                    />
-                                </label>
-                            </div>
-
-                            {isWaitingForManual && (
-                                <div className="flex items-center justify-center gap-2 text-xs text-yellow-400 animate-pulse bg-yellow-500/10 p-2 rounded">
-                                    <span className="w-2 h-2 rounded-full bg-yellow-400"></span>
-                                    Uploading and processing...
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* MANUAL UPLOAD MODAL REMOVED - Using Edge-TTS */}
 
             {/* Header */}
             <header className="glass-panel border-0 border-b border-[var(--glass-border)] py-4">
@@ -920,33 +768,8 @@ function AutomationContent() {
                                         </div>
                                     </label>
 
-                                    <label className={`flex items-center gap-3 cursor-pointer ${skipAudio ? 'opacity-50' : ''}`}>
-                                        <input
-                                            type="checkbox"
-                                            checked={useAIStudioAudio}
-                                            onChange={(e) => setUseAIStudioAudio(e.target.checked)}
-                                            disabled={skipAudio}
-                                            className="w-5 h-5 rounded"
-                                        />
-                                        <div>
-                                            <span className="text-sm">Use AI Studio (Puppeteer) ⭐</span>
-                                            <p className="text-xs text-[var(--text-muted)]">Requires running <code>start-chrome.bat</code> locally</p>
-                                        </div>
-                                    </label>
-
-                                    {useAIStudioAudio && (
-                                        <div className="text-xs text-blue-400/80 bg-blue-500/10 p-3 rounded-lg border border-blue-500/20">
-                                            <strong>Before Starting:</strong>
-                                            <ol className="list-decimal ml-4 mt-1 space-y-1">
-                                                <li>Double-click <code>start-chrome.bat</code> in project folder</li>
-                                                <li>Ensure Chrome opens with debugging port 9222</li>
-                                                <li>Log in to Google in that window if needed</li>
-                                            </ol>
-                                        </div>
-                                    )}
-
-                                    <div className="text-xs text-amber-400/80 bg-amber-500/10 p-3 rounded-lg">
-                                        ⚠️ <strong>Note:</strong> Gemini API has strict rate limits. If you see "Rate limited" errors, enable "AI Studio" option above or skip audio.
+                                    <div className="text-xs text-green-400/80 bg-green-500/10 p-3 rounded-lg border border-green-500/20">
+                                        ✨ <strong>Free & Unlimited:</strong> Using Edge-TTS for high-quality neural voice generation. No API keys or browser automation required.
                                     </div>
 
                                     <h4 className="text-sm font-medium text-[var(--text-muted)] pt-2">Export Settings</h4>

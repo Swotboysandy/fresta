@@ -39,58 +39,60 @@ export async function POST(request: NextRequest) {
         console.log(`Starting video generation for scene ${sceneId}...`);
         console.log(`Prompt: ${prompt.substring(0, 100)}...`);
 
-        // Use a persistent shared profile
-        const automationProfileDir = path.join(
-            process.cwd(),
-            ".chrome-automation-profile"
-        );
+        // Use User's Default Chrome Profile
+        const userDataDir = path.join(process.env.LOCALAPPDATA || "", "Google", "Chrome", "User Data");
 
-        // Ensure profile directory exists
-        if (!fs.existsSync(automationProfileDir)) {
-            fs.mkdirSync(automationProfileDir, { recursive: true });
+        // Launch browser with user profile
+        console.log(`Launching Chrome with User Profile: ${userDataDir}`);
+        // Launch browser with user profile
+        console.log(`Launching Chrome with User Profile: ${userDataDir}`);
+
+        try {
+            browser = await puppeteer.launch({
+                headless: false,
+                executablePath: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+                userDataDir: userDataDir,
+                args: [
+                    "--no-sandbox",
+                    "--disable-setuid-sandbox",
+                    "--disable-blink-features=AutomationControlled",
+                    "--disable-infobars",
+                    "--window-size=1920,1080",
+                    "--start-maximized",
+                    "--disable-dev-shm-usage",
+                    "--no-first-run",
+                    "--disable-extensions",
+                ],
+                ignoreDefaultArgs: ["--enable-automation"],
+                defaultViewport: null,
+            });
+        } catch (launchError: any) {
+            console.error("Chrome launch error:", launchError);
+            if (launchError.message.includes("EBUSY") || launchError.message.includes("user data directory is already in use")) {
+                throw new Error("CHROME_OPEN_ERROR: Please close all Chrome windows and try again.");
+            }
+            throw launchError;
         }
 
-        // Lock file to prevent concurrent browser instances
-        const lockFilePath = path.join(automationProfileDir, "automation.lock");
-        let lockAttempts = 0;
-        const maxLockAttempts = 120;
+        // SMART TAB MANAGEMENT
+        // 1. Get all open pages (including restored session tabs)
+        const pages = await browser.pages();
 
-        while (fs.existsSync(lockFilePath) && lockAttempts < maxLockAttempts) {
-            console.log(`Waiting for previous automation to complete... (${lockAttempts}s)`);
-            await sleep(1000);
-            lockAttempts++;
+        // 2. Look for an empty tab to use (about:blank or newtab)
+        let page = pages.find(p => p.url() === "about:blank" || p.url() === "chrome://newtab/");
+
+        // 3. If no empty tab found, create a new one
+        if (!page) {
+            page = await browser.newPage();
         }
 
-        // Create lock file
-        fs.writeFileSync(lockFilePath, `${Date.now()}`);
-
-        // Cleanup function to remove lock
-        const releaseLock = () => {
-            try { fs.unlinkSync(lockFilePath); } catch { /* ignore */ }
-        };
-
-        // Launch browser with anti-detection settings
-        console.log(`Launching Chrome...`);
-        browser = await puppeteer.launch({
-            headless: false,
-            executablePath: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
-            userDataDir: automationProfileDir,
-            args: [
-                "--no-sandbox",
-                "--disable-setuid-sandbox",
-                "--disable-blink-features=AutomationControlled",
-                "--disable-infobars",
-                "--window-size=1920,1080",
-                "--start-maximized",
-                "--disable-dev-shm-usage",
-                "--no-first-run",
-                "--disable-extensions",
-            ],
-            ignoreDefaultArgs: ["--enable-automation"],
-            defaultViewport: null,
-        });
-
-        const page = await browser.newPage();
+        // 4. Cleanup: Close ONLY other EMPTY tabs to reduce clutter
+        // We preserve tabs with content (like restored sessions) to avoid data loss
+        for (const p of pages) {
+            if (p !== page && (p.url() === "about:blank" || p.url() === "chrome://newtab/")) {
+                try { await p.close(); } catch (e) { /* ignore */ }
+            }
+        }
 
         // Anti-detection measures
         await page.evaluateOnNewDocument(() => {
@@ -274,8 +276,8 @@ export async function POST(request: NextRequest) {
         await browser.close();
         browser = null;
 
-        // Release lock
-        releaseLock();
+        // Release lock (Not used in user profile mode)
+        // releaseLock();
 
         if (videoUrl) {
             return NextResponse.json({

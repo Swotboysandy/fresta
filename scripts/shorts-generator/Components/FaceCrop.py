@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import subprocess
 from moviepy.editor import *
 from Components.Speaker import detect_faces_and_speakers, Frames
 global Fps

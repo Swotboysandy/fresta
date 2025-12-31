@@ -45,27 +45,7 @@ export default function Home() {
     if (!youtubeUrl) return;
     setIsClipping(true);
     setClipResult(null);
-
-    // Progress steps
-    const steps = [
-      "Step 1/6: Downloading video from YouTube...",
-      "Step 2/6: Extracting audio...",
-      "Step 3/6: Transcribing with Whisper AI...",
-      "Step 4/6: Finding best highlight with Groq AI...",
-      "Step 5/6: Cropping to vertical format (9:16)...",
-      "Step 6/6: Adding subtitles & finalizing..."
-    ];
-
-    let stepIndex = 0;
-    setClipLogs(steps[0]);
-
-    // Simulate progress updates (actual progress comes from backend)
-    const progressInterval = setInterval(() => {
-      stepIndex++;
-      if (stepIndex < steps.length) {
-        setClipLogs(steps[stepIndex]);
-      }
-    }, 15000); // Update every 15 seconds
+    setClipLogs("🚀 Starting...");
 
     try {
       const res = await fetch("/api/clipper", {
@@ -74,18 +54,53 @@ export default function Home() {
         body: JSON.stringify({ url: youtubeUrl, mode: "samurai" }),
       });
 
-      clearInterval(progressInterval);
+      if (!res.body) {
+        setClipLogs("❌ No response body");
+        setIsClipping(false);
+        return;
+      }
 
-      const data = await res.json();
-      if (data.success) {
-        setClipResult(data.videoUrl);
-        setClipLogs("Done! Video generated successfully.");
-      } else {
-        setClipLogs(`Error: ${data.details || data.error}`);
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let logs: string[] = [];
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split("\n").filter(l => l.startsWith("data:"));
+
+        for (const line of lines) {
+          try {
+            const jsonStr = line.replace("data: ", "").trim();
+            if (!jsonStr) continue;
+            const event = JSON.parse(jsonStr);
+
+            if (event.type === "log") {
+              logs = [...logs.slice(-15), event.data]; // Keep last 15 lines
+              setClipLogs(logs.join("\n"));
+            } else if (event.type === "error") {
+              logs = [...logs, `❌ ${event.data}`];
+              setClipLogs(logs.join("\n"));
+            } else if (event.type === "done") {
+              const result = JSON.parse(event.data);
+              if (result.success && result.videoUrl) {
+                setClipResult(result.videoUrl);
+                logs = [...logs, "✅ Done! Video generated successfully."];
+                setClipLogs(logs.join("\n"));
+              } else {
+                logs = [...logs, `❌ Error: ${result.details || result.error}`];
+                setClipLogs(logs.join("\n"));
+              }
+            }
+          } catch (e) {
+            // Ignore parse errors
+          }
+        }
       }
     } catch (error) {
-      clearInterval(progressInterval);
-      setClipLogs("Network error occurred.");
+      setClipLogs("❌ Network error occurred.");
     } finally {
       setIsClipping(false);
     }
@@ -138,7 +153,7 @@ export default function Home() {
     <div className="min-h-screen flex flex-col bg-[var(--bg-primary)]">
       {/* Header */}
       <header className="glass-panel border-0 border-b border-[var(--glass-border)] py-4">
-        <div className="max-w-4xl mx-auto px-6 flex items-center justify-center">
+        <div className="max-w-4xl mx-auto px-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-2xl">
               🎬
@@ -149,6 +164,22 @@ export default function Home() {
               </h1>
               <p className="text-xs text-[var(--text-muted)]">Fully Automated Video Generation</p>
             </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <a
+              href="/faceless"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-purple-500/20 to-blue-500/20 border border-purple-500/30 hover:border-purple-500/50 transition-all text-sm font-medium"
+            >
+              <span>🎭</span>
+              <span>Faceless</span>
+            </a>
+            <a
+              href="/samurai"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-500/30 hover:border-red-500/50 transition-all text-sm font-medium"
+            >
+              <span>⚔️</span>
+              <span>SamurAI</span>
+            </a>
           </div>
         </div>
       </header>
