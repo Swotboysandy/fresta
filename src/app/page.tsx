@@ -361,6 +361,11 @@ export default function Home() {
                           <div className="flex items-center gap-2">
                             <span className="text-base">{v.lang}</span>
                             <span className="text-xs font-semibold text-white/80">{v.label}</span>
+                            {v.provider === "Google" && (
+                              <span className="px-1.5 py-0.5 rounded-md bg-blue-500/10 text-blue-400 text-[8px] font-bold border border-blue-500/20 tracking-wide">
+                                GOOGLE
+                              </span>
+                            )}
                           </div>
                           <span className="text-[10px] text-white/30">{v.gender}</span>
                         </button>
