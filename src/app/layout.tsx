@@ -27,11 +27,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <body className={`${inter.variable} antialiased bg-grid`}>
+      <body className={`${inter.variable} antialiased bg-grid`} suppressHydrationWarning>
         {/* Ambient background effects */}
         <div className="bg-radial-glow fixed inset-0 pointer-events-none z-0" />
         <div className="bg-noise" />
-        
+
         {/* Main content */}
         <div className="relative z-10">
           {children}
