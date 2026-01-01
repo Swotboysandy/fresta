@@ -146,45 +146,54 @@ def generate_tts(text: str, output_path: str, voice: str = "hi-IN-SwaraNeural") 
     
     # Check for Google Voice
     if voice.startswith("google:"):
-        google_voice_name = voice.split(":", 1)[1] # e.g. en-US-Journey-F
-        api_key = os.getenv("GOOGLE_TTS_API_KEY") 
-        if not api_key:
-             api_key = os.getenv("GEMINI_API_KEY") # Fallback
-        
-        if not api_key:
-            raise Exception("Missing GOOGLE_TTS_API_KEY in .env")
-        
-        print(f"Using Google TTS ({google_voice_name}) via Cloud API...")
-        
-        # We write to output_path directly for Google
-        url = f"https://texttospeech.googleapis.com/v1/text:synthesize?key={api_key}"
-        data = {
-            "input": {"text": text},
-            "voice": {"languageCode": "en-US", "name": google_voice_name},
-            "audioConfig": {
-                "audioEncoding": "MP3",
-                "speakingRate": 1.25, # Fast pace
-                "pitch": 0.0
+        print(f"Attempting Google TTS...")
+        try:
+            google_voice_name = voice.split(":", 1)[1] # e.g. en-US-Journey-F
+            api_key = os.getenv("GOOGLE_TTS_API_KEY") 
+            if not api_key:
+                 api_key = os.getenv("GEMINI_API_KEY") # Fallback
+            
+            if not api_key:
+                raise Exception("Missing GOOGLE_TTS_API_KEY in .env")
+            
+            # We write to output_path directly for Google
+            url = f"https://texttospeech.googleapis.com/v1/text:synthesize?key={api_key}"
+            data = {
+                "input": {"text": text},
+                "voice": {"languageCode": "en-US", "name": google_voice_name},
+                "audioConfig": {
+                    "audioEncoding": "MP3",
+                    "speakingRate": 1.25, # Fast pace
+                    "pitch": 0.0
+                }
             }
-        }
-        
-        response = requests.post(url, json=data)
-        if response.status_code != 200:
-            print(f"Google TTS Error: {response.text}")
-            raise Exception(f"Google TTS failed: {response.text}")
             
-        import base64
-        audio_content = response.json().get("audioContent")
-        if not audio_content:
-             raise Exception("No audio content received from Google TTS")
-
-        with open(output_path, "wb") as f:
-            f.write(base64.b64decode(audio_content))
+            response = requests.post(url, json=data)
+            if response.status_code == 200:
+                import base64
+                audio_content = response.json().get("audioContent")
+                if audio_content:
+                    with open(output_path, "wb") as f:
+                        f.write(base64.b64decode(audio_content))
+                    print(f"✓ Google TTS generated")
+                    return output_path
             
-        print(f"✓ Google TTS generated")
-        return output_path
-
-    # Fallback to Edge TTS (Azure/Default)
+            print(f"⚠️ Google TTS Error ({response.status_code}): {response.text}")
+            print("⚠️ Falling back to Edge TTS...")
+            
+            # Fallback Mapping
+            if "Female" in voice or "-F" in voice or "-O" in voice: # Journey-F, Studio-O
+                voice = "en-US-JennyNeural"
+            else:
+                voice = "en-US-GuyNeural"
+                
+        except Exception as e:
+            print(f"⚠️ Google TTS Exception: {e}")
+            print("⚠️ Falling back to Edge TTS...")
+            # Fallback default
+            voice = "en-US-GuyNeural"
+            
+    # Fallback / Default to Edge TTS
     print(f"Using Edge TTS ({voice})...")
     # Generate TTS first to a temp file
     temp_tts = f"temp_tts_{session_id}.mp3"
