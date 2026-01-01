@@ -55,4 +55,11 @@ public/generated-images/
 
 # Final merged videos
 public/final-videos/
+public/faceless/
+public/clips/
+scripts/shorts-generator/videos/
+scripts/faceless-generator/videos/
+*.mp4
+*.wav
+!public/music/*.mp3
 
