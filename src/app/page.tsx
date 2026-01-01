@@ -28,10 +28,14 @@ const STYLES = [
 ];
 
 const VOICES = [
-  { id: "hi-IN-SwaraNeural", label: "Swara", lang: "🇮🇳", gender: "Female" },
-  { id: "hi-IN-MadhurNeural", label: "Madhur", lang: "🇮🇳", gender: "Male" },
-  { id: "en-US-JennyNeural", label: "Jenny", lang: "🇺🇸", gender: "Female" },
-  { id: "en-US-GuyNeural", label: "Guy", lang: "🇺🇸", gender: "Male" },
+  { id: "hi-IN-SwaraNeural", label: "Swara", lang: "🇮🇳", gender: "Female", provider: "Azure" },
+  { id: "hi-IN-MadhurNeural", label: "Madhur", lang: "🇮🇳", gender: "Male", provider: "Azure" },
+  { id: "en-US-JennyNeural", label: "Jenny", lang: "🇺🇸", gender: "Female", provider: "Azure" },
+  { id: "en-US-GuyNeural", label: "Guy", lang: "🇺🇸", gender: "Male", provider: "Azure" },
+  { id: "google:en-US-Journey-F", label: "Journey F", lang: "🇺🇸", gender: "Female", provider: "Google" },
+  { id: "google:en-US-Journey-D", label: "Journey D", lang: "🇺🇸", gender: "Male", provider: "Google" },
+  { id: "google:en-US-Studio-O", label: "Studio O", lang: "🇺🇸", gender: "Female", provider: "Google" },
+  { id: "google:en-US-Studio-M", label: "Studio M", lang: "🇺🇸", gender: "Male", provider: "Google" },
 ];
 
 const MUSIC_MOODS = [
