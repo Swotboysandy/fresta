@@ -315,7 +315,7 @@ export default function Home() {
             </div>
           ) : (
             /* --- FACELESS GENERATOR UI --- */
-            <div className="w-full px-6 py-4 space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="max-w-[1240px] mx-auto px-6 py-4 space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
               {/* Configuration */}
               <div className="space-y-5">
