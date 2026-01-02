@@ -315,7 +315,7 @@ export default function Home() {
             </div>
           ) : (
             /* --- FACELESS GENERATOR UI --- */
-            <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="w-full px-8 space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
               {/* Configuration */}
               <div className="space-y-3">
@@ -339,6 +339,7 @@ export default function Home() {
 
                 {/* Compact 5-Column Dashboard */}
                 <div className="grid grid-cols-5 gap-3">
+
                   {/* Style */}
                   <div className="bg-white/[0.02] border border-white/5 rounded-xl p-3">
                     <label className="block text-xs font-semibold text-white/50 mb-2">Style</label>
@@ -348,231 +349,207 @@ export default function Home() {
                           key={s.id}
                           onClick={() => setFacelessStyle(s.id)}
                           disabled={isProcessingFaceless}
-                          className={`relative p-3 rounded-xl border transition-all ${facelessStyle === s.id
-                            ? "border-purple-500/40 bg-purple-500/10"
-                            : "border-white/5 bg-black/20 hover:border-purple-500/20 hover:bg-purple-500/5"
-                            }`}
+                          className={`p-1.5 rounded-lg border transition-all ${facelessStyle === s.id ? "border-purple-500/40 bg-purple-500/10" : "border-white/5 bg-black/20 hover:border-purple-500/20"}`}
                         >
-                          <s.icon className="w-6 h-6 mb-2 mx-auto text-purple-300" />
-                          <div className="text-xs font-medium text-white/80">{s.label}</div>
+                          <s.icon className="w-4 h-4 mx-auto mb-0.5 text-purple-300" />
+                          <div className="text-[9px] text-white/70">{s.label}</div>
                         </button>
                       ))}
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-6">
-                    {/* Voice Selector */}
-                    <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-6">
-                      <label className="block text-sm font-medium text-white/50 mb-4">Voice</label>
-                      <div className="space-y-2">
-                        {VOICES.map((v) => (
-                          <button
-                            key={v.id}
-                            onClick={() => setFacelessVoice(v.id)}
-                            disabled={isProcessingFaceless}
-                            className={`w-full p-3 rounded-lg border transition-all text-left flex items-center justify-between ${facelessVoice === v.id
-                              ? "border-purple-500/40 bg-purple-500/10"
-                              : "border-white/5 bg-black/20 hover:border-purple-500/20"
-                              }`}
-                          >
-                            <div className="flex items-center gap-2">
-                              <span className="text-base">{v.lang}</span>
-                              <span className="text-xs font-semibold text-white/80">{v.label}</span>
-                              {v.provider === "Google" && (
-                                <span className="px-1.5 py-0.5 rounded-md bg-blue-500/10 text-blue-400 text-[8px] font-bold border border-blue-500/20 tracking-wide">
-                                  GOOGLE
-                                </span>
-                              )}
-                            </div>
-                            <span className="text-[10px] text-white/30">{v.gender}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Music Selector */}
-                    <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-6">
-                      <label className="block text-sm font-medium text-white/50 mb-4">Music Mood</label>
-                      <div className="flex flex-wrap gap-2">
-                        {MUSIC_MOODS.map((m) => (
-                          <button
-                            key={m.id}
-                            onClick={() => setFacelessMusic(m.id)}
-                            disabled={isProcessingFaceless}
-                            className={`px-3 py-2 rounded-lg border text-xs font-medium transition-all flex items-center gap-1.5 ${facelessMusic === m.id
-                              ? "border-purple-500/40 bg-purple-500/10 text-white"
-                              : "border-white/5 bg-black/20 text-white/50 hover:text-white/80"
-                              }`}
-                          >
-                            <m.icon className="w-3 h-3" />
-                            {m.label}
-                          </button>
-                        ))}
-                      </div>
+                  {/* Voice */}
+                  <div className="bg-white/[0.02] border border-white/5 rounded-xl p-3">
+                    <label className="block text-xs font-semibold text-white/50 mb-2">Voice</label>
+                    <div className="space-y-1 max-h-[120px] overflow-y-auto custom-scrollbar pr-0.5">
+                      {VOICES.map((v) => (
+                        <button
+                          key={v.id}
+                          onClick={() => setFacelessVoice(v.id)}
+                          disabled={isProcessingFaceless}
+                          className={`w-full p-1.5 rounded-lg border transition-all text-left ${facelessVoice === v.id ? "border-purple-500/40 bg-purple-500/10" : "border-white/5 bg-black/20 hover:border-purple-500/20"}`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-[9px] text-white/80">{v.lang} {v.label}</span>
+                            <span className="text-[8px] text-white/30">{v.gender[0]}</span>
+                          </div>
+                        </button>
+                      ))}
                     </div>
                   </div>
 
-                  {/* Duration Selector */}
-                  <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-6">
-                    <label className="block text-sm font-medium text-white/50 mb-4">Video Duration</label>
-                    <div className="flex gap-3">
+                  {/* Music */}
+                  <div className="bg-white/[0.02] border border-white/5 rounded-xl p-3">
+                    <label className="block text-xs font-semibold text-white/50 mb-2">Music</label>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {MUSIC_MOODS.map((m) => (
+                        <button
+                          key={m.id}
+                          onClick={() => setFacelessMusic(m.id)}
+                          disabled={isProcessingFaceless}
+                          className={`p-1.5 rounded-lg border transition-all ${facelessMusic === m.id ? "border-purple-500/40 bg-purple-500/10" : "border-white/5 bg-black/20 hover:border-purple-500/20"}`}
+                        >
+                          <m.icon className="w-3 h-3 mx-auto mb-0.5" style={{ color: m.color }} />
+                          <div className="text-[9px] text-white/70">{m.label}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Duration */}
+                  <div className="bg-white/[0.02] border border-white/5 rounded-xl p-3">
+                    <label className="block text-xs font-semibold text-white/50 mb-2">Duration</label>
+                    <div className="space-y-1.5">
                       {DURATIONS.map((d) => (
                         <button
                           key={d.id}
                           onClick={() => setFacelessDuration(d.id)}
                           disabled={isProcessingFaceless}
-                          className={`flex-1 p-3 rounded-xl border transition-all ${facelessDuration === d.id
-                            ? "border-purple-500/40 bg-purple-500/10"
-                            : "border-white/5 bg-black/20 hover:border-purple-500/20"
-                            }`}
+                          className={`w-full p-1.5 rounded-lg border transition-all ${facelessDuration === d.id ? "border-purple-500/40 bg-purple-500/10" : "border-white/5 bg-black/20 hover:border-purple-500/20"}`}
                         >
-                          <div className="text-sm font-semibold text-white/80">{d.label}</div>
-                          <div className="text-[10px] text-white/30 mt-0.5">{d.desc}</div>
+                          <div className="text-[10px] font-semibold text-white/80">{d.label}</div>
+                          <div className="text-[8px] text-white/30">{d.desc}</div>
                         </button>
                       ))}
                     </div>
                   </div>
 
-                  {/* Language Selector */}
-                  <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-6">
-                    <label className="block text-sm font-medium text-white/50 mb-4">Language</label>
-                    <div className="flex gap-4">
+                  {/* Language */}
+                  <div className="bg-white/[0.02] border border-white/5 rounded-xl p-3">
+                    <label className="block text-xs font-semibold text-white/50 mb-2">Language</label>
+                    <div className="space-y-1.5">
                       <button
                         onClick={() => setFacelessLanguage("english")}
                         disabled={isProcessingFaceless}
-                        className={`flex-1 p-3 rounded-xl border transition-all text-sm font-medium ${facelessLanguage === "english"
-                          ? "border-purple-500/40 bg-purple-500/10 text-white"
-                          : "border-white/5 bg-black/20 hover:border-purple-500/20 text-white/60"
-                          }`}
+                        className={`w-full p-2 rounded-lg border transition-all text-[10px] ${facelessLanguage === "english" ? "border-purple-500/40 bg-purple-500/10 text-white" : "border-white/5 bg-black/20 hover:border-purple-500/20 text-white/70"}`}
                       >
                         🇺🇸 English
                       </button>
                       <button
                         onClick={() => setFacelessLanguage("hindi")}
                         disabled={isProcessingFaceless}
-                        className={`flex-1 p-3 rounded-xl border transition-all text-sm font-medium ${facelessLanguage === "hindi"
-                          ? "border-purple-500/40 bg-purple-500/10 text-white"
-                          : "border-white/5 bg-black/20 hover:border-purple-500/20 text-white/60"
-                          }`}
+                        className={`w-full p-2 rounded-lg border transition-all text-[10px] ${facelessLanguage === "hindi" ? "border-purple-500/40 bg-purple-500/10 text-white" : "border-white/5 bg-black/20 hover:border-purple-500/20 text-white/70"}`}
                       >
-                        🇮🇳 Hindi (Hinglish)
+                        🇮🇳 Hindi
                       </button>
                     </div>
                   </div>
 
-                  {/* Generate Button */}
-                  <button
-                    onClick={handleGenerateFaceless}
-                    disabled={isProcessingFaceless || !facelessUrl.trim()}
-                    className="w-full py-5 rounded-2xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-lg shadow-lg shadow-purple-900/50 hover:shadow-purple-800/60 transition-all disabled:opacity-40 disabled:cursor-not-allowed transform active:scale-[0.99]"
-                  >
-                    {isProcessingFaceless ? (
-                      <span className="flex items-center justify-center gap-3">
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        Processing Video...
-                      </span>
-                    ) : (
-                      <span className="flex items-center justify-center gap-2">
-                        <Play className="w-5 h-5 fill-current" />
-                        <span>Generate Faceless Video</span>
-                      </span>
-                    )}
-                  </button>
                 </div>
 
-                {/* Output Section */}
-                <div className="space-y-4 pt-4 border-t border-white/5">
-                  {/* Progress Bar & Logs */}
-                  {facelessLogs.length > 0 && (
-                    <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-4 flex flex-col max-h-[300px]">
-                      <div className="flex items-center justify-between mb-3 px-1">
-                        <h3 className="text-xs font-bold text-white/60 uppercase tracking-widest">
-                          {isProcessingFaceless ? "Processing Video..." : "Status Log"}
-                        </h3>
-                        {isProcessingFaceless && (
-                          <div className="text-[10px] text-purple-300 font-mono">
-                            Est. time: ~1-2 mins
-                          </div>
-                        )}
-                      </div>
+                {/* Generate Button */}
+                <button
+                  onClick={handleGenerateFaceless}
+                  disabled={isProcessingFaceless || !facelessUrl.trim()}
+                  className="w-full py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-sm shadow-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {isProcessingFaceless ? (
+                    <span className="flex items-center justify-center gap-3">
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Processing Video...
+                    </span>
+                  ) : (
+                    <span className="flex items-center justify-center gap-2">
+                      <Play className="w-5 h-5 fill-current" />
+                      <span>Generate Faceless Video</span>
+                    </span>
+                  )}
+                </button>
+              </div>
 
-                      {/* Progress Bar */}
+              {/* Output Section */}
+              <div className="space-y-4 pt-4 border-t border-white/5">
+                {/* Progress Bar & Logs */}
+                {facelessLogs.length > 0 && (
+                  <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-4 flex flex-col max-h-[300px]">
+                    <div className="flex items-center justify-between mb-3 px-1">
+                      <h3 className="text-xs font-bold text-white/60 uppercase tracking-widest">
+                        {isProcessingFaceless ? "Processing Video..." : "Status Log"}
+                      </h3>
                       {isProcessingFaceless && (
-                        <div className="w-full h-1 bg-white/5 rounded-full mb-4 overflow-hidden relative">
-                          <div className="absolute top-0 left-0 h-full bg-gradient-to-r from-purple-600 to-blue-500 animate-progress w-full origin-left-right"></div>
+                        <div className="text-[10px] text-purple-300 font-mono">
+                          Est. time: ~1-2 mins
                         </div>
                       )}
-
-                      <div className="flex-1 bg-black/40 rounded-xl p-3 overflow-y-auto font-mono text-[10px] text-white/60 leading-relaxed space-y-1 custom-scrollbar">
-                        {facelessLogs.map((log, idx) => (
-                          <div
-                            key={idx}
-                            className={`${log.includes("❌") ? "text-red-400" :
-                              log.includes("✓") || log.includes("✅") ? "text-emerald-400" :
-                                log.includes("Step") ? "text-blue-400" :
-                                  log.includes("[AI]") ? "text-purple-400" :
-                                    ""
-                              }`}
-                          >
-                            <span className="opacity-30 mr-2">{new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
-                            {log}
-                          </div>
-                        ))}
-                      </div>
                     </div>
-                  )}
 
-                  {/* Error */}
-                  {facelessError && (
-                    <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-start gap-3">
-                      <span className="text-lg">⚠️</span>
-                      <div>
-                        <h4 className="text-sm font-bold text-red-400">Generation Failed</h4>
-                        <p className="text-xs text-red-300/60 mt-0.5">{facelessError}</p>
+                    {/* Progress Bar */}
+                    {isProcessingFaceless && (
+                      <div className="w-full h-1 bg-white/5 rounded-full mb-4 overflow-hidden relative">
+                        <div className="absolute top-0 left-0 h-full bg-gradient-to-r from-purple-600 to-blue-500 animate-progress w-full origin-left-right"></div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {/* Result */}
-                  {facelessResult && (
-                    <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-2xl p-5 shadow-2xl shadow-emerald-900/10 text-center">
-                      <div className="flex items-center justify-center gap-2 mb-4 text-emerald-400">
-                        <PartyPopper className="w-5 h-5" />
-                        <h3 className="text-sm font-bold uppercase tracking-wide">Video Ready!</h3>
-                      </div>
-                      <video
-                        src={facelessResult}
-                        controls
-                        className="w-full max-w-sm mx-auto rounded-xl shadow-lg border border-white/5 aspect-[9/16] bg-black"
-                      />
-                      <div className="flex gap-2 mt-4 justify-center">
-                        <a
-                          href={facelessResult}
-                          download="faceless_video.mp4"
-                          className="px-8 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-center text-xs flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-900/20"
+                    <div className="flex-1 bg-black/40 rounded-xl p-3 overflow-y-auto font-mono text-[10px] text-white/60 leading-relaxed space-y-1 custom-scrollbar">
+                      {facelessLogs.map((log, idx) => (
+                        <div
+                          key={idx}
+                          className={`${log.includes("❌") ? "text-red-400" :
+                            log.includes("✓") || log.includes("✅") ? "text-emerald-400" :
+                              log.includes("Step") ? "text-blue-400" :
+                                log.includes("[AI]") ? "text-purple-400" :
+                                  ""
+                            }`}
                         >
-                          <Download className="w-4 h-4" />
-                          Download
-                        </a>
-                        <button
-                          onClick={() => {
-                            setFacelessResult(null);
-                            setFacelessLogs([]);
-                            setFacelessUrl("");
-                          }}
-                          className="px-4 py-2.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 text-white/60 hover:text-white transition-all"
-                          title="Start New"
-                        >
-                          <RotateCcw className="w-4 h-4" />
-                        </button>
-                      </div>
+                          <span className="opacity-30 mr-2">{new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+                          {log}
+                        </div>
+                      ))}
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
+
+                {/* Error */}
+                {facelessError && (
+                  <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-start gap-3">
+                    <span className="text-lg">⚠️</span>
+                    <div>
+                      <h4 className="text-sm font-bold text-red-400">Generation Failed</h4>
+                      <p className="text-xs text-red-300/60 mt-0.5">{facelessError}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Result */}
+                {facelessResult && (
+                  <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-2xl p-5 shadow-2xl shadow-emerald-900/10 text-center">
+                    <div className="flex items-center justify-center gap-2 mb-4 text-emerald-400">
+                      <PartyPopper className="w-5 h-5" />
+                      <h3 className="text-sm font-bold uppercase tracking-wide">Video Ready!</h3>
+                    </div>
+                    <video
+                      src={facelessResult}
+                      controls
+                      className="w-full max-w-sm mx-auto rounded-xl shadow-lg border border-white/5 aspect-[9/16] bg-black"
+                    />
+                    <div className="flex gap-2 mt-4 justify-center">
+                      <a
+                        href={facelessResult}
+                        download="faceless_video.mp4"
+                        className="px-8 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-center text-xs flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-900/20"
+                      >
+                        <Download className="w-4 h-4" />
+                        Download
+                      </a>
+                      <button
+                        onClick={() => {
+                          setFacelessResult(null);
+                          setFacelessLogs([]);
+                          setFacelessUrl("");
+                        }}
+                        className="px-4 py-2.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 text-white/60 hover:text-white transition-all"
+                        title="Start New"
+                      >
+                        <RotateCcw className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
+            </div>
           )}
 
-            </div>
+        </div>
       </main>
 
       <style jsx global>{`
