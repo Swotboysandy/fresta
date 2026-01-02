@@ -315,30 +315,30 @@ export default function Home() {
             </div>
           ) : (
             /* --- FACELESS GENERATOR UI --- */
-            <div className="w-full px-8 space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="w-full px-4 py-6 space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500 min-h-screen flex flex-col">
 
               {/* Configuration */}
-              <div className="space-y-3">
+              <div className="flex-1 flex flex-col space-y-4">
                 <div className="text-center mb-4">
-                  <h2 className="text-3xl font-bold mb-2">Faceless Video Generator</h2>
-                  <p className="text-white/40 text-sm">Transform YouTube videos into engaging Shorts with AI.</p>
+                  <h2 className="text-4xl font-bold mb-2">Faceless Video Generator</h2>
+                  <p className="text-white/40">Transform YouTube videos into engaging Shorts with AI.</p>
                 </div>
 
                 {/* URL Input */}
-                <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4">
-                  <label className="block text-sm font-medium text-white/50 mb-2">YouTube URL</label>
+                <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5">
+                  <label className="block text-sm font-medium text-white/50 mb-3">YouTube URL</label>
                   <input
                     type="text"
                     value={facelessUrl}
                     onChange={(e) => setFacelessUrl(e.target.value)}
                     placeholder="https://youtube.com/watch?v=..."
-                    className="w-full px-4 py-2.5 text-sm bg-black/40 border border-white/5 rounded-lg text-white placeholder:text-white/20 focus:outline-none focus:border-purple-500/30 transition-all"
+                    className="w-full px-4 py-3 text-base bg-black/40 border border-white/5 rounded-lg text-white placeholder:text-white/20 focus:outline-none focus:border-purple-500/30 transition-all"
                     disabled={isProcessingFaceless}
                   />
                 </div>
 
                 {/* Compact 5-Column Dashboard */}
-                <div className="grid grid-cols-5 gap-3">
+                <div className="grid grid-cols-5 gap-4 flex-1">
 
                   {/* Style */}
                   <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4">
@@ -349,28 +349,28 @@ export default function Home() {
                           key={s.id}
                           onClick={() => setFacelessStyle(s.id)}
                           disabled={isProcessingFaceless}
-                          className={`p-2 rounded-lg border transition-all ${facelessStyle === s.id ? "border-purple-500/40 bg-purple-500/10" : "border-white/5 bg-black/20 hover:border-purple-500/20"}`}
+                          className={`p-3 rounded-lg border transition-all ${facelessStyle === s.id ? "border-purple-500/40 bg-purple-500/10" : "border-white/5 bg-black/20 hover:border-purple-500/20"}`}
                         >
-                          <s.icon className="w-5 h-5 mx-auto mb-1 text-purple-300" />
-                          <div className="text-[11px] text-white/70">{s.label}</div>
+                          <s.icon className="w-6 h-6 mx-auto mb-1.5 text-purple-300" />
+                          <div className="text-xs text-white/70">{s.label}</div>
                         </button>
                       ))}
                     </div>
                   </div>
 
                   {/* Voice */}
-                  <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4">
-                    <label className="block text-sm font-semibold text-white/50 mb-3">Voice</label>
-                    <div className="space-y-1.5 max-h-[140px] overflow-y-auto custom-scrollbar pr-1">
+                  <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5 flex flex-col">
+                    <label className="block text-base font-semibold text-white/50 mb-4">Voice</label>
+                    <div className="space-y-2 flex-1 overflow-y-auto custom-scrollbar pr-1">
                       {VOICES.map((v) => (
                         <button
                           key={v.id}
                           onClick={() => setFacelessVoice(v.id)}
                           disabled={isProcessingFaceless}
-                          className={`w-full p-2 rounded-lg border transition-all text-left ${facelessVoice === v.id ? "border-purple-500/40 bg-purple-500/10" : "border-white/5 bg-black/20 hover:border-purple-500/20"}`}
+                          className={`w-full p-2.5 rounded-lg border transition-all text-left ${facelessVoice === v.id ? "border-purple-500/40 bg-purple-500/10" : "border-white/5 bg-black/20 hover:border-purple-500/20"}`}
                         >
                           <div className="flex items-center justify-between">
-                            <span className="text-[11px] text-white/80">{v.lang} {v.label}</span>
+                            <span className="text-xs text-white/80">{v.lang} {v.label}</span>
                             <span className="text-[10px] text-white/30">{v.gender[0]}</span>
                           </div>
                         </button>
@@ -379,56 +379,56 @@ export default function Home() {
                   </div>
 
                   {/* Music */}
-                  <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4">
-                    <label className="block text-sm font-semibold text-white/50 mb-3">Music</label>
-                    <div className="grid grid-cols-2 gap-2">
+                  <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5 flex flex-col">
+                    <label className="block text-base font-semibold text-white/50 mb-4">Music</label>
+                    <div className="grid grid-cols-2 gap-2.5 flex-1">
                       {MUSIC_MOODS.map((m) => (
                         <button
                           key={m.id}
                           onClick={() => setFacelessMusic(m.id)}
                           disabled={isProcessingFaceless}
-                          className={`p-2 rounded-lg border transition-all ${facelessMusic === m.id ? "border-purple-500/40 bg-purple-500/10" : "border-white/5 bg-black/20 hover:border-purple-500/20"}`}
+                          className={`p-3 rounded-lg border transition-all ${facelessMusic === m.id ? "border-purple-500/40 bg-purple-500/10" : "border-white/5 bg-black/20 hover:border-purple-500/20"}`}
                         >
-                          <m.icon className="w-4 h-4 mx-auto mb-1" style={{ color: m.color }} />
-                          <div className="text-[11px] text-white/70">{m.label}</div>
+                          <m.icon className="w-5 h-5 mx-auto mb-1.5" style={{ color: m.color }} />
+                          <div className="text-xs text-white/70">{m.label}</div>
                         </button>
                       ))}
                     </div>
                   </div>
 
                   {/* Duration */}
-                  <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4">
-                    <label className="block text-sm font-semibold text-white/50 mb-3">Duration</label>
-                    <div className="space-y-2">
+                  <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5 flex flex-col">
+                    <label className="block text-base font-semibold text-white/50 mb-4">Duration</label>
+                    <div className="space-y-2.5 flex-1">
                       {DURATIONS.map((d) => (
                         <button
                           key={d.id}
                           onClick={() => setFacelessDuration(d.id)}
                           disabled={isProcessingFaceless}
-                          className={`w-full p-2 rounded-lg border transition-all ${facelessDuration === d.id ? "border-purple-500/40 bg-purple-500/10" : "border-white/5 bg-black/20 hover:border-purple-500/20"}`}
+                          className={`w-full p-2.5 rounded-lg border transition-all ${facelessDuration === d.id ? "border-purple-500/40 bg-purple-500/10" : "border-white/5 bg-black/20 hover:border-purple-500/20"}`}
                         >
-                          <div className="text-xs font-semibold text-white/80">{d.label}</div>
-                          <div className="text-[10px] text-white/30">{d.desc}</div>
+                          <div className="text-sm font-semibold text-white/80">{d.label}</div>
+                          <div className="text-xs text-white/30">{d.desc}</div>
                         </button>
                       ))}
                     </div>
                   </div>
 
                   {/* Language */}
-                  <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4">
-                    <label className="block text-sm font-semibold text-white/50 mb-3">Language</label>
-                    <div className="space-y-2">
+                  <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5 flex flex-col">
+                    <label className="block text-base font-semibold text-white/50 mb-4">Language</label>
+                    <div className="space-y-2.5 flex-1">
                       <button
                         onClick={() => setFacelessLanguage("english")}
                         disabled={isProcessingFaceless}
-                        className={`w-full p-2.5 rounded-lg border transition-all text-xs ${facelessLanguage === "english" ? "border-purple-500/40 bg-purple-500/10 text-white" : "border-white/5 bg-black/20 hover:border-purple-500/20 text-white/70"}`}
+                        className={`w-full p-3 rounded-lg border transition-all text-sm ${facelessLanguage === "english" ? "border-purple-500/40 bg-purple-500/10 text-white" : "border-white/5 bg-black/20 hover:border-purple-500/20 text-white/70"}`}
                       >
                         🇺🇸 English
                       </button>
                       <button
                         onClick={() => setFacelessLanguage("hindi")}
                         disabled={isProcessingFaceless}
-                        className={`w-full p-2.5 rounded-lg border transition-all text-xs ${facelessLanguage === "hindi" ? "border-purple-500/40 bg-purple-500/10 text-white" : "border-white/5 bg-black/20 hover:border-purple-500/20 text-white/70"}`}
+                        className={`w-full p-3 rounded-lg border transition-all text-sm ${facelessLanguage === "hindi" ? "border-purple-500/40 bg-purple-500/10 text-white" : "border-white/5 bg-black/20 hover:border-purple-500/20 text-white/70"}`}
                       >
                         🇮🇳 Hindi
                       </button>
@@ -441,7 +441,7 @@ export default function Home() {
                 <button
                   onClick={handleGenerateFaceless}
                   disabled={isProcessingFaceless || !facelessUrl.trim()}
-                  className="w-full py-4 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-base shadow-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="w-full py-5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-lg shadow-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {isProcessingFaceless ? (
                     <span className="flex items-center justify-center gap-3">
