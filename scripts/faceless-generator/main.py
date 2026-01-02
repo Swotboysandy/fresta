@@ -61,50 +61,84 @@ def get_video_duration(video_path: str) -> float:
     return float(result.stdout.strip())
 
 
-def rewrite_as_story(transcription: str, style: str = "documentary") -> dict:
+def rewrite_as_story(transcription: str, style: str = "documentary", language: str = "english", target_duration: int = 30) -> dict:
     """Use Groq to create complete story with looping savage ending."""
-    print(f"[AI] Creating complete story with looping ending...")
+    print(f"[AI] Creating {target_duration}s story (Language: {language})...")
     
     if not GROQ_API_KEY:
         raise Exception("GROQ_API_KEY not set")
     
-    # For 45 seconds at fast pace: ~110-130 words
-    target_words = 120
+    # Language instruction
+    if language.lower() in ['hindi', 'hi', 'in']:
+        lang_instruction = "Conversational Hindi (Hinglish is okay for impact words)"
+    else:
+        lang_instruction = "Simple Spoken English"
     
-    prompt = f"""You are creating a 45-SECOND viral video narration. CRITICAL: Explain the video SO CLEARLY that anyone listening understands EXACTLY what happened.
+    # Dynamic word count based on target duration
+    # At +35% TTS speed: ~3.3 words/second
+    # Formula: duration * 3.3 = words needed
+    if target_duration == 20:
+        target_words = 85  # ~25 seconds actual
+    elif target_duration == 60:
+        target_words = 210  # ~63 seconds actual
+    else:  # 30 seconds default
+        target_words = 130  # ~40 seconds actual
+    
+    prompt = f"""You are an expert YouTube Shorts scripter. Your task is to rewrite the video transcription into a viral, curiosity-driven narration.
 
-RULES:
-1. 110-130 words total
-2. Same language as input (Hindi/English)
-3. Start with SAVAGE HOOK  
-4. Middle: COMPLETE EXPLANATION - what happens, who's involved, the outcome
-5. End with LOOPING HOOK - question, cliffhanger, or call-to-action that keeps them engaged (NO clear ending!)
+TARGET DURATION: {target_duration} seconds ({target_words} words REQUIRED at FAST pace)
 
-SAVAGE OPENING HOOKS:
-- "Kya dekh rahe ho? Kaam nahi hai? Sun..."
-- "Arrey ruko! Ye video skip mat karna..."
-- "Wait - you NEED to hear this..."
+CRITICAL: The script MUST be AT LEAST {target_words - 10} words, IDEALLY {target_words} words.
+If you generate fewer words, the video will be too short and FAIL.
 
-LOOPING ENDINGS (never say "the end" or "that's it"):
-- "Aur tumhe kya lagta hai? Comment mein batao..."
-- "Wait, part 2 chahiye? Like karo..."
-- "Iska twist toh aage hai... swipe up..."
-- "You won't believe what happened next..."
-
-PERFECT EXAMPLE:
-"Kya dekh rahe ho? Phone rakh. Ye ek gameshow hai - 100 pilots compete kar rahe hain ek private jet ke liye worth 50 crore. Pehle round mein blindfolded cockpit simulation karna hai. Ek galti, eliminated. Phir endurance test - khade raho haath upar karke. Neeche kiya toh out. Log pagal hone lage, kuch rote huye chhod gaye. Last mein bas 3 log bache. Final challenge? Vo sabse insane tha. Comment mein guess karo kya tha challenge?"
-
-VIDEO TO EXPLAIN:
+INPUT TRANSCRIPTION:
 {transcription[:5000]}
 
-Return JSON:
-{{
-    "hook": "Opening savage hook",
-    "narration": "Complete 110-130 word story with CLEAR explanation + looping ending",
-    "sentences": ["Hook.", "Setup explained.", "What happens.", "The action.", "Twist/Result.", "Looping ending.", ...]
-}}
+OBJECTIVE:
+Do NOT summarize. Re-narrate the content as a reaction-driven mystery.
+Flow: Hook -> Confusion -> Partial Reveal -> Twist -> Final Payoff.
 
-Sentences: 8-15 words each.
+STRICT STRUCTURE & TIMING:
+1. HOOK (0-2 sec): Shocking or confusing statement. No context.
+   - Example: "These bones aren't buried..."
+   - Rule: Must stop the scroll immediately.
+   
+2. CURIOSITY GAP (2-5 sec): Tell what is happening, but NOT why.
+   - Example: "They take real bones... and turn them into this."
+   - Rule: Keep it vague.
+   
+3. SLOW REVEAL (5-12 sec): Explain step-by-step. One idea per line.
+   - Example: "First, the bones are cleaned."
+   - Rule: Drip information slowly.
+   
+4. TWIST / PAYOFF (12-20 sec): The unexpected meaning or result.
+   - Example: "This isn't decoration. It's actually done to preserve history."
+   - Rule: Reframe earlier info.
+   
+5. CLOSING (Last 2 sec): Leave viewer thinking.
+   - Example: "Would you keep something like this?"
+   - Rule: Loop back or ask a question.
+
+WRITING RULES:
+- PERSPECTIVE: NEVER use "I" or "Me". Always refer to the subject as "He", "She", "This guy", or "This girl".
+- Language: {lang_instruction} (Strictly enforce this).
+- Short spoken lines (not written text).
+- NO "In this video...", NO educational tone.
+- 1 idea per line.
+- Natural pauses.
+
+Return valid JSON:
+{{
+    "sentences": [
+        "Hook line",
+        "Curiosity line",
+        "Slow reveal line 1",
+        "Slow reveal line 2",
+        "Twist line",
+        "Closing line"
+    ],
+    "narration": "Full paragraph text of the script."
+}}
 """
     
     url = "https://api.groq.com/openai/v1/chat/completions"
@@ -201,7 +235,7 @@ def generate_tts(text: str, output_path: str, voice: str = "hi-IN-SwaraNeural") 
     cmd = [
         'edge-tts',
         '--voice', voice,
-        '--rate', '+25%',  # Even faster
+        '--rate', '+35%',  # Breathless, fast-paced
         '--pitch', '+5Hz',
         '--text', text,
         '--write-media', temp_tts
@@ -262,8 +296,8 @@ def create_video_cuts(video_path: str, duration: float, num_cuts: int, output_di
             '-ss', str(start_time),
             '-i', video_path,
             '-t', str(clip_duration),
-            # Slight zoom: scale to 1280 width then crop to 1080, leaves smaller black bars
-            '-vf', 'scale=1280:-2,crop=1080:ih:(iw-1080)/2:0,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black',
+            # More zoom: scale to 1400 width then crop to 1080 for tighter framing
+            '-vf', 'scale=1400:-2,crop=1080:ih:(iw-1080)/2:0,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black',
             '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '23',
             '-an',  # No audio
             output_path
@@ -304,10 +338,10 @@ def create_subtitles(sentences: list, duration: float, output_path: str):
             # Time for this sentence based on word count
             sentence_duration = len(words) / words_per_sec
             
-            # Show 3-4 words at a time
-            for j in range(0, len(words), 3):
-                chunk_words = words[j:j+3]
-                chunk = ' '.join(chunk_words)
+            # Show 1 word at a time (Shorts style)
+            for j in range(0, len(words), 1):
+                chunk_words = words[j:j+1]
+                chunk = ' '.join(chunk_words).upper() # Force uppercase for that "punchy" look
                 chunk_duration = len(chunk_words) / words_per_sec
                 
                 start = current_time
@@ -363,12 +397,12 @@ def assemble_final_video(
     music_path: str,
     output_path: str
 ):
-    """Final assembly: video + TTS + music + subtitles."""
-    print("Assembling final video...")
+    """Final assembly: video + TTS + music + subtitles + watermark."""
+    print("Assembling final video with watermark...")
     
     subtitle_style = (
-        "FontName=Arial,FontSize=16,PrimaryColour=&HFFFFFF,OutlineColour=&H000000,"
-        "Outline=2,Shadow=0,MarginV=40,Alignment=2,Bold=1"
+        "FontName=Impact,FontSize=24,PrimaryColour=&HFFFFFF,OutlineColour=&H000000,"
+        "Outline=3,Shadow=2,MarginV=70,Alignment=2,Bold=1"
     )
     
     # Copy subtitle to simple filename in temp dir to avoid path escaping issues
@@ -378,8 +412,21 @@ def assemble_final_video(
     
     filter_parts = []
     
-    # Video pass-through
-    filter_parts.append("[0:v]copy[v]")
+    # Video with animated watermark
+    # Watermark moves diagonally, bouncing around screen
+    watermark_filter = (
+        "drawtext="
+        "text='FRESTA':"
+        "fontsize=28:"
+        "fontcolor=white@0.25:"  # 25% opacity - visible but subtle
+        "shadowcolor=black@0.15:"
+        "shadowx=2:shadowy=2:"
+        "x='if(lt(mod(t\\,20)\\,10)\\, 50 + (mod(t\\,10)*90)\\, 950 - (mod(t\\,10)*90))':"  # Bounce horizontally
+        "y='if(lt(mod(t\\,16)\\,8)\\, 100 + (mod(t\\,8)*180)\\, 1540 - (mod(t\\,8)*180))':"  # Bounce vertically
+        "fontfile=/Windows/Fonts/arialbd.ttf"
+    )
+    
+    filter_parts.append(f"[0:v]{watermark_filter}[vwm]")
     
     if music_path and os.path.exists(music_path):
         # Mix TTS with background music (low volume)
@@ -388,8 +435,8 @@ def assemble_final_video(
     else:
         filter_parts.append("[1:a]acopy[a]")
     
-    # Use simple relative filename for subtitles (avoids path issues)
-    filter_parts.append(f"[v]subtitles={temp_sub}:force_style='{subtitle_style}'[vout]")
+    # Apply subtitles to watermarked video
+    filter_parts.append(f"[vwm]subtitles={temp_sub}:force_style='{subtitle_style}'[vout]")
     
     filter_complex = ";".join(filter_parts)
     
@@ -409,7 +456,7 @@ def assemble_final_video(
     
     try:
         subprocess.run(cmd, check=True)
-        print(f"✓ Video assembled")
+        print(f"✓ Video assembled with watermark")
     finally:
         # Cleanup temp subtitle
         if os.path.exists(temp_sub):
@@ -426,11 +473,14 @@ def main():
     
     style = sys.argv[2] if len(sys.argv) > 2 else "documentary"
     voice = sys.argv[3] if len(sys.argv) > 3 else "hi-IN-SwaraNeural"
-    music_mood = sys.argv[4] if len(sys.argv) > 4 else "cinematic"
+    music_mood = sys.argv[4] if len(sys.argv) > 4 else "dramatic"
+    target_language = sys.argv[5] if len(sys.argv) > 5 else "english"
+    target_duration = int(sys.argv[6]) if len(sys.argv) > 6 else 30
     
     print(f"\n{'='*60}")
     print(f"AI FACELESS VIDEO GENERATOR v2")
     print(f"Fast-paced, no gaps, quick cuts")
+    print(f"Language: {target_language} | Duration: {target_duration}s")
     print(f"{'='*60}\n")
     
     output_dir = Path(__file__).parent / "output"
@@ -456,8 +506,8 @@ def main():
     print(f"✓ Transcribed: {len(full_text.split())} words")
     
     # Step 3: AI rewrite
-    print("\nStep 3/6: AI creating fast-paced narration...")
-    result = rewrite_as_story(full_text, style)
+    print(f"\nStep 3/6: AI creating {target_duration}s narration ({target_language})...")
+    result = rewrite_as_story(full_text, style, target_language, target_duration)
     sentences = result['sentences']
     narration = ' '.join(sentences)
     

@@ -46,6 +46,12 @@ const MUSIC_MOODS = [
   { id: "none", label: "None", icon: VolumeX, color: "gray" },
 ];
 
+const DURATIONS = [
+  { id: 20, label: "20 sec", desc: "Quick" },
+  { id: 30, label: "30 sec", desc: "Standard" },
+  { id: 60, label: "60 sec", desc: "Extended" },
+];
+
 // --- STORY GENERATOR DATA ---
 const genres = [
   { id: "horror", label: "Horror", icon: "👻" },
@@ -76,6 +82,8 @@ export default function Home() {
   const [facelessStyle, setFacelessStyle] = useState("dramatic");
   const [facelessVoice, setFacelessVoice] = useState("hi-IN-SwaraNeural");
   const [facelessMusic, setFacelessMusic] = useState("dramatic");
+  const [facelessDuration, setFacelessDuration] = useState(30);
+  const [facelessLanguage, setFacelessLanguage] = useState("english");
   const [isProcessingFaceless, setIsProcessingFaceless] = useState(false);
   const [facelessLogs, setFacelessLogs] = useState<string[]>([]);
   const [facelessResult, setFacelessResult] = useState<string | null>(null);
@@ -101,7 +109,14 @@ export default function Home() {
       const res = await fetch("/api/faceless", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: facelessUrl, style: facelessStyle, voice: facelessVoice, music: facelessMusic }),
+        body: JSON.stringify({
+          url: facelessUrl,
+          style: facelessStyle,
+          voice: facelessVoice,
+          music: facelessMusic,
+          language: facelessLanguage,
+          duration: facelessDuration
+        }),
       });
 
       if (!res.body) {
@@ -392,6 +407,54 @@ export default function Home() {
                         </button>
                       ))}
                     </div>
+                  </div>
+                </div>
+
+                {/* Duration Selector */}
+                <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-6">
+                  <label className="block text-sm font-medium text-white/50 mb-4">Video Duration</label>
+                  <div className="flex gap-3">
+                    {DURATIONS.map((d) => (
+                      <button
+                        key={d.id}
+                        onClick={() => setFacelessDuration(d.id)}
+                        disabled={isProcessingFaceless}
+                        className={`flex-1 p-3 rounded-xl border transition-all ${facelessDuration === d.id
+                          ? "border-purple-500/40 bg-purple-500/10"
+                          : "border-white/5 bg-black/20 hover:border-purple-500/20"
+                          }`}
+                      >
+                        <div className="text-sm font-semibold text-white/80">{d.label}</div>
+                        <div className="text-[10px] text-white/30 mt-0.5">{d.desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Language Selector */}
+                <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-6">
+                  <label className="block text-sm font-medium text-white/50 mb-4">Language</label>
+                  <div className="flex gap-4">
+                    <button
+                      onClick={() => setFacelessLanguage("english")}
+                      disabled={isProcessingFaceless}
+                      className={`flex-1 p-3 rounded-xl border transition-all text-sm font-medium ${facelessLanguage === "english"
+                        ? "border-purple-500/40 bg-purple-500/10 text-white"
+                        : "border-white/5 bg-black/20 hover:border-purple-500/20 text-white/60"
+                        }`}
+                    >
+                      🇺🇸 English
+                    </button>
+                    <button
+                      onClick={() => setFacelessLanguage("hindi")}
+                      disabled={isProcessingFaceless}
+                      className={`flex-1 p-3 rounded-xl border transition-all text-sm font-medium ${facelessLanguage === "hindi"
+                        ? "border-purple-500/40 bg-purple-500/10 text-white"
+                        : "border-white/5 bg-black/20 hover:border-purple-500/20 text-white/60"
+                        }`}
+                    >
+                      🇮🇳 Hindi (Hinglish)
+                    </button>
                   </div>
                 </div>
 
