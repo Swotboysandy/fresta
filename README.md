@@ -183,9 +183,11 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📧 Contact
 
-**Sunny** - [@Swotboysandy](https://github.com/Swotboysandy) - contact@swotboysandy.com
+**Sunny** - [@Swotboysandy](https://github.com/Swotboysandy)
 
 Project Link: [https://github.com/Swotboysandy/fresta](https://github.com/Swotboysandy/fresta)
+
+💡 **Open for contributions!** Feel free to submit PRs, report issues, or suggest features.
 
 ---
 
