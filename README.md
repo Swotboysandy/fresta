@@ -156,17 +156,6 @@ Add music files to `storyforge-ai/tracks/` and update `MUSIC_MOODS` array.
 - **Google Cloud TTS**: [Enable here](https://console.cloud.google.com/)
   - Premium voice quality (if not set, uses free Edge TTS)
 
-## 📸 Screenshots
-
-### Dashboard
-![Dashboard](docs/dashboard.png)
-
-### Processing
-![Processing](docs/processing.png)
-
-### Result
-![Result](docs/result.png)
-
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
@@ -194,7 +183,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📧 Contact
 
-**Sandy** - [@Swotboysandy](https://github.com/Swotboysandy)
+**Sunny** - [@Swotboysandy](https://github.com/Swotboysandy) - contact@swotboysandy.com
 
 Project Link: [https://github.com/Swotboysandy/fresta](https://github.com/Swotboysandy/fresta)
 
@@ -204,6 +193,6 @@ Project Link: [https://github.com/Swotboysandy/fresta](https://github.com/Swotbo
 
 ### 🌟 If you find this useful, please give it a star! 🌟
 
-Made with ❤️ by [Sandy](https://github.com/Swotboysandy)
+Made with ❤️ by [Sunny](https://github.com/Swotboysandy)
 
 </div>
