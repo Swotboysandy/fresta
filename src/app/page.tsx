@@ -315,10 +315,10 @@ export default function Home() {
             </div>
           ) : (
             /* --- FACELESS GENERATOR UI --- */
-            <div className="w-full px-4 py-6 space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500 min-h-screen flex flex-col">
+            <div className="w-full px-6 py-4 space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
               {/* Configuration */}
-              <div className="flex-1 flex flex-col space-y-4">
+              <div className="space-y-5">
                 <div className="text-center mb-4">
                   <h2 className="text-4xl font-bold mb-2">Faceless Video Generator</h2>
                   <p className="text-white/40">Transform YouTube videos into engaging Shorts with AI.</p>
@@ -337,8 +337,8 @@ export default function Home() {
                   />
                 </div>
 
-                {/* Compact 5-Column Dashboard */}
-                <div className="grid grid-cols-5 gap-4 flex-1">
+                {/* 5-Column Dashboard */}
+                <div className="grid grid-cols-5 gap-4">
 
                   {/* Style */}
                   <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4">
@@ -359,9 +359,9 @@ export default function Home() {
                   </div>
 
                   {/* Voice */}
-                  <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5 flex flex-col">
+                  <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5">
                     <label className="block text-base font-semibold text-white/50 mb-4">Voice</label>
-                    <div className="space-y-2 flex-1 overflow-y-auto custom-scrollbar pr-1">
+                    <div className="space-y-2 max-h-[180px] overflow-y-auto custom-scrollbar pr-1">
                       {VOICES.map((v) => (
                         <button
                           key={v.id}
@@ -379,9 +379,9 @@ export default function Home() {
                   </div>
 
                   {/* Music */}
-                  <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5 flex flex-col">
+                  <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5">
                     <label className="block text-base font-semibold text-white/50 mb-4">Music</label>
-                    <div className="grid grid-cols-2 gap-2.5 flex-1">
+                    <div className="grid grid-cols-2 gap-2.5">
                       {MUSIC_MOODS.map((m) => (
                         <button
                           key={m.id}
@@ -397,9 +397,9 @@ export default function Home() {
                   </div>
 
                   {/* Duration */}
-                  <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5 flex flex-col">
+                  <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5">
                     <label className="block text-base font-semibold text-white/50 mb-4">Duration</label>
-                    <div className="space-y-2.5 flex-1">
+                    <div className="space-y-2.5">
                       {DURATIONS.map((d) => (
                         <button
                           key={d.id}
@@ -415,9 +415,9 @@ export default function Home() {
                   </div>
 
                   {/* Language */}
-                  <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5 flex flex-col">
+                  <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5">
                     <label className="block text-base font-semibold text-white/50 mb-4">Language</label>
-                    <div className="space-y-2.5 flex-1">
+                    <div className="space-y-2.5">
                       <button
                         onClick={() => setFacelessLanguage("english")}
                         disabled={isProcessingFaceless}
