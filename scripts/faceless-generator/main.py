@@ -36,7 +36,7 @@ for parent in [current_dir] + list(current_dir.parents):
         load_dotenv(env_file)
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or "AIzaSyAky0rVCDu-2EJcXm84XRjiEomr-14SBiU"
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GEMINI_MODELS = ["gemini-pro-vision", "gemini-1.5-flash-latest", "gemini-1.5-pro-latest"]
 
 # session_id will be set per-request in main() or generate_faceless_video()
