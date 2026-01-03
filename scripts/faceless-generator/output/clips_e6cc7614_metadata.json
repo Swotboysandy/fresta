@@ -1,0 +1,17 @@
+{
+  "source_video": "irl Shark Diving stream in South Africa 🦈",
+  "clips": [
+    {
+      "file": "clip_e6cc7614_1.mp4",
+      "timestamp": "10:14",
+      "score": 7,
+      "reason": "High Audio Energy"
+    },
+    {
+      "file": "clip_e6cc7614_2.mp4",
+      "timestamp": "0:40",
+      "score": 7,
+      "reason": "High Audio Energy"
+    }
+  ]
+}

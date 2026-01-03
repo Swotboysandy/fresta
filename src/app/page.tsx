@@ -86,6 +86,9 @@ export default function Home() {
   const [facelessError, setFacelessError] = useState<string | null>(null);
   const [facelessProgress, setFacelessProgress] = useState(0);
   const [facelessCurrentStep, setFacelessCurrentStep] = useState("");
+  const [subtitlesOnly, setSubtitlesOnly] = useState(false);  // Subtitles-only mode
+  const [clipFinder, setClipFinder] = useState(false);  // Clip finder mode
+  const [numClips, setNumClips] = useState(3);  // Number of clips to extract
 
   // --- HANDLERS ---
 
@@ -115,7 +118,10 @@ export default function Home() {
           voice: facelessVoice,
           music: facelessMusic,
           language: facelessLanguage,
-          duration: 30  // Always 30 seconds
+          duration: 30,
+          subtitlesOnly,
+          clipFinder,
+          numClips
         }),
       });
 
@@ -348,8 +354,62 @@ export default function Home() {
                   />
                 </div>
 
+                {/* Subtitles Only Toggle */}
+                <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-semibold text-white">Subtitles Only Mode</h3>
+                    <p className="text-xs text-white/40 mt-0.5">Original video + subtitles + music (no AI voice)</p>
+                  </div>
+                  <button
+                    onClick={() => { setSubtitlesOnly(!subtitlesOnly); if (!subtitlesOnly) setClipFinder(false); }}
+                    disabled={isProcessingFaceless}
+                    className={`relative w-12 h-6 rounded-full transition-all ${subtitlesOnly ? "bg-purple-600" : "bg-white/10"}`}
+                  >
+                    <span
+                      className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${subtitlesOnly ? "left-7" : "left-1"}`}
+                    />
+                  </button>
+                </div>
+
+                {/* Clip Finder Toggle */}
+                <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-semibold text-white">🎬 AI Clip Finder</h3>
+                      <p className="text-xs text-white/40 mt-0.5">Auto-find best moments from long videos</p>
+                    </div>
+                    <button
+                      onClick={() => { setClipFinder(!clipFinder); if (!clipFinder) setSubtitlesOnly(false); }}
+                      disabled={isProcessingFaceless}
+                      className={`relative w-12 h-6 rounded-full transition-all ${clipFinder ? "bg-emerald-600" : "bg-white/10"}`}
+                    >
+                      <span
+                        className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${clipFinder ? "left-7" : "left-1"}`}
+                      />
+                    </button>
+                  </div>
+
+                  {/* Clip count selector - shown when clip finder is enabled */}
+                  {clipFinder && (
+                    <div className="mt-3 pt-3 border-t border-white/5">
+                      <label className="block text-xs text-white/40 mb-2">Number of clips to extract:</label>
+                      <div className="flex gap-2">
+                        {[1, 2, 3, 4, 5].map((n) => (
+                          <button
+                            key={n}
+                            onClick={() => setNumClips(n)}
+                            className={`w-10 h-8 rounded-lg text-sm font-bold transition-all ${numClips === n ? "bg-emerald-600 text-white" : "bg-white/5 text-white/60 hover:bg-white/10"}`}
+                          >
+                            {n}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 {/* Middle Section - 3 Equal Columns */}
-                <div className="grid grid-cols-3 gap-4">
+                <div className={`grid grid-cols-3 gap-4 ${subtitlesOnly || clipFinder ? "opacity-50 pointer-events-none" : ""}`}>
 
                   {/* Style */}
                   <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5">
@@ -453,51 +513,49 @@ export default function Home() {
 
               {/* Output Section */}
               <div className="space-y-4 pt-4 border-t border-white/5">
-                {/* Progress Bar & Logs */}
+                {/* Progress Bar & Logs - Fixed left side */}
                 {facelessLogs.length > 0 && (
-                  <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-4 flex flex-col max-h-[300px]">
-                    <div className="flex items-center justify-between mb-3 px-1">
-                      <h3 className="text-xs font-bold text-white/60 uppercase tracking-widest">
-                        {isProcessingFaceless ? `Processing Video - ${facelessProgress}%` : "Status Log"}
-                      </h3>
+                  <div className="fixed top-24 left-4 w-64 z-40 animate-in slide-in-from-left-4 duration-500">
+                    <div className="bg-[#0d0d12]/95 backdrop-blur-sm border border-white/10 rounded-xl p-3 shadow-2xl max-h-[60vh] flex flex-col">
+                      <div className="flex items-center justify-between mb-3 px-1">
+                        <h3 className="text-xs font-bold text-white/60 uppercase tracking-widest">
+                          {isProcessingFaceless ? `Processing - ${facelessProgress}%` : "Status Log"}
+                        </h3>
+                        {isProcessingFaceless && (
+                          <div className="text-[10px] text-purple-300 font-mono truncate max-w-[200px]">
+                            {facelessCurrentStep}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Progress Bar with Percentage */}
                       {isProcessingFaceless && (
-                        <div className="text-[10px] text-purple-300 font-mono">
-                          {facelessCurrentStep}
+                        <div className="w-full mb-3">
+                          <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden relative">
+                            <div
+                              className="absolute top-0 left-0 h-full bg-gradient-to-r from-purple-600 to-blue-500 transition-all duration-500"
+                              style={{ width: `${facelessProgress}%` }}
+                            ></div>
+                          </div>
                         </div>
                       )}
-                    </div>
 
-                    {/* Progress Bar with Percentage */}
-                    {isProcessingFaceless && (
-                      <div className="w-full mb-4">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-[10px] text-white/40">Progress</span>
-                          <span className="text-[10px] font-bold text-purple-400">{facelessProgress}%</span>
-                        </div>
-                        <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden relative">
+                      <div className="flex-1 bg-black/40 rounded-lg p-2 overflow-y-auto font-mono text-[9px] text-white/60 leading-relaxed space-y-0.5 custom-scrollbar max-h-[45vh]">
+                        {facelessLogs.map((log, idx) => (
                           <div
-                            className="absolute top-0 left-0 h-full bg-gradient-to-r from-purple-600 to-blue-500 transition-all duration-500"
-                            style={{ width: `${facelessProgress}%` }}
-                          ></div>
-                        </div>
+                            key={idx}
+                            className={`${log.includes("❌") ? "text-red-400" :
+                              log.includes("✓") || log.includes("✅") ? "text-emerald-400" :
+                                log.includes("Step") ? "text-blue-400" :
+                                  log.includes("[AI]") ? "text-purple-400" :
+                                    ""
+                              }`}
+                          >
+                            <span className="opacity-30 mr-2">{new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+                            {log}
+                          </div>
+                        ))}
                       </div>
-                    )}
-
-                    <div className="flex-1 bg-black/40 rounded-xl p-3 overflow-y-auto font-mono text-[10px] text-white/60 leading-relaxed space-y-1 custom-scrollbar">
-                      {facelessLogs.map((log, idx) => (
-                        <div
-                          key={idx}
-                          className={`${log.includes("❌") ? "text-red-400" :
-                            log.includes("✓") || log.includes("✅") ? "text-emerald-400" :
-                              log.includes("Step") ? "text-blue-400" :
-                                log.includes("[AI]") ? "text-purple-400" :
-                                  ""
-                            }`}
-                        >
-                          <span className="opacity-30 mr-2">{new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
-                          {log}
-                        </div>
-                      ))}
                     </div>
                   </div>
                 )}
@@ -513,38 +571,40 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* Result */}
+                {/* Result - Fixed right side when video is ready */}
                 {facelessResult && (
-                  <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-2xl p-5 shadow-2xl shadow-emerald-900/10 text-center">
-                    <div className="flex items-center justify-center gap-2 mb-4 text-emerald-400">
-                      <PartyPopper className="w-5 h-5" />
-                      <h3 className="text-sm font-bold uppercase tracking-wide">Video Ready!</h3>
-                    </div>
-                    <video
-                      src={facelessResult}
-                      controls
-                      className="w-full max-w-sm mx-auto rounded-xl shadow-lg border border-white/5 aspect-[9/16] bg-black"
-                    />
-                    <div className="flex gap-2 mt-4 justify-center">
-                      <a
-                        href={facelessResult}
-                        download="faceless_video.mp4"
-                        className="px-8 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-center text-xs flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-900/20"
-                      >
-                        <Download className="w-4 h-4" />
-                        Download
-                      </a>
-                      <button
-                        onClick={() => {
-                          setFacelessResult(null);
-                          setFacelessLogs([]);
-                          setFacelessUrl("");
-                        }}
-                        className="px-4 py-2.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 text-white/60 hover:text-white transition-all"
-                        title="Start New"
-                      >
-                        <RotateCcw className="w-4 h-4" />
-                      </button>
+                  <div className="fixed top-24 right-8 w-80 z-40 animate-in slide-in-from-right-8 duration-500">
+                    <div className="bg-[#0d0d12] border border-emerald-500/20 rounded-2xl p-4 shadow-2xl shadow-emerald-900/20">
+                      <div className="flex items-center justify-center gap-2 mb-3 text-emerald-400">
+                        <PartyPopper className="w-4 h-4" />
+                        <h3 className="text-xs font-bold uppercase tracking-wide">Video Ready!</h3>
+                      </div>
+                      <video
+                        src={facelessResult}
+                        controls
+                        className="w-full rounded-xl shadow-lg border border-white/5 aspect-[9/16] bg-black"
+                      />
+                      <div className="flex gap-2 mt-3 justify-center">
+                        <a
+                          href={facelessResult}
+                          download="faceless_video.mp4"
+                          className="flex-1 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-center text-xs flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-900/20"
+                        >
+                          <Download className="w-3 h-3" />
+                          Download
+                        </a>
+                        <button
+                          onClick={() => {
+                            setFacelessResult(null);
+                            setFacelessLogs([]);
+                            setFacelessUrl("");
+                          }}
+                          className="px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 text-white/60 hover:text-white transition-all"
+                          title="Start New"
+                        >
+                          <RotateCcw className="w-3 h-3" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}

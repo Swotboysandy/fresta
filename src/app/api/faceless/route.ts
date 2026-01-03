@@ -7,7 +7,7 @@ import fs from "fs";
 
 export async function POST(request: NextRequest) {
     try {
-        const { url, style = "documentary", voice = "hi-IN-SwaraNeural", music = "cinematic", language = "english", duration = 30 } = await request.json();
+        const { url, style = "documentary", voice = "hi-IN-SwaraNeural", music = "cinematic", language = "english", duration = 30, subtitlesOnly = false, clipFinder = false, numClips = 3 } = await request.json();
 
         if (!url) {
             return new Response(
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
             fs.mkdirSync(outputDir, { recursive: true });
         }
 
-        console.log(`Faceless generator: ${url}, style=${style}, voice=${voice}, music=${music}, language=${language}, duration=${duration}s`);
+        console.log(`Faceless generator: ${url}, style=${style}, voice=${voice}, music=${music}, language=${language}, duration=${duration}s, subtitlesOnly=${subtitlesOnly}, clipFinder=${clipFinder}, numClips=${numClips}`);
 
         const encoder = new TextEncoder();
         let dataString = "";
@@ -36,7 +36,20 @@ export async function POST(request: NextRequest) {
                     controller.enqueue(encoder.encode(event));
                 };
 
-                const pythonProcess = spawn("python", [scriptPath, url, style, voice, music, language, duration.toString()], {
+                // Pass all parameters to Python script
+                const args = [
+                    scriptPath,
+                    url,
+                    style,
+                    voice,
+                    music,
+                    language,
+                    duration.toString(),
+                    subtitlesOnly ? "true" : "false",
+                    clipFinder ? "true" : "false",
+                    numClips.toString()
+                ];
+                const pythonProcess = spawn("python", args, {
                     cwd,
                     env: {
                         ...process.env,
