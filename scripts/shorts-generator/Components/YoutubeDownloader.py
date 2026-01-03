@@ -27,7 +27,7 @@ def clean_filename(title):
     return cleaned[:60]
 
 def download_youtube_video(url, output_dir='videos'):
-    """Download using pytubefix with PO token"""
+    """Download using pytubefix with OAuth. Returns (filepath, title)"""
     os.makedirs(output_dir, exist_ok=True)
     
     try:
@@ -35,6 +35,9 @@ def download_youtube_video(url, output_dir='videos'):
         
         # Use cached OAuth credentials (already logged in via terminal)
         yt = YouTube(url, use_oauth=True, allow_oauth_cache=True)
+        
+        video_title = yt.title
+        print(f"Title: {video_title}")
         
         # Get progressive stream (video+audio combined)
         stream = yt.streams.filter(progressive=True, file_extension='mp4').order_by('resolution').desc().first()
@@ -45,19 +48,19 @@ def download_youtube_video(url, output_dir='videos'):
         
         if not stream:
             print("No stream found")
-            return None
+            return None, None
         
         print(f"Downloading {stream.resolution}...")
         filename = stream.download(output_path=output_dir)
         
         print(f"✓ Downloaded: {filename}")
-        return filename
+        return filename, video_title
         
     except Exception as e:
         print(f"Download error: {e}")
         import traceback
         traceback.print_exc()
-        return None
+        return None, None
 
 
 if __name__ == "__main__":

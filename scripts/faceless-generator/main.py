@@ -65,6 +65,14 @@ def download_youtube_subtitles(url: str) -> str:
     """Download YouTube subtitles/captions directly."""
     print("Downloading YouTube subtitles...")
     
+    # Clean up any old subtitle files first
+    import glob
+    for old_file in glob.glob('temp_subs_*.vtt'):
+        try:
+            os.remove(old_file)
+        except:
+            pass
+    
     try:
         # Try to get auto-generated or manual subtitles
         cmd = [
@@ -81,7 +89,6 @@ def download_youtube_subtitles(url: str) -> str:
         result = subprocess.run(cmd, capture_output=True, text=True)
         
         # Find the subtitle file
-        import glob
         subtitle_files = glob.glob(f'temp_subs_{session_id}*.vtt')
         
         if subtitle_files:
@@ -132,23 +139,26 @@ def rewrite_as_story(transcription: str, style: str = "documentary", language: s
         lang_instruction = "Simple Spoken English"
     
     # Dynamic word count based on target duration
-    # At +20% TTS speed: ~3 words/second
-    # Tuned for engaging pace without gaps
+    # At +30% TTS speed: ~3 words/second
+    # Target: 28-35 second engaging videos
     if target_duration == 20:
-        target_words = 65  # ~20 seconds engaging pace
+        target_words = 65  # ~20-22 seconds
     elif target_duration == 60:
-        target_words = 190  # ~60 seconds engaging pace
+        target_words = 190  # ~55-65 seconds
     else:  # 30 seconds default
-        target_words = 95  # ~30 seconds engaging pace
+        target_words = 95  # Target 28-35 seconds with good content
     
-    prompt = f"""You are a RUTHLESS YouTube Shorts scripter. Your ONLY job: maximum retention.
+    prompt = f"""You are a RUTHLESS YouTube Shorts scripter. Your ONLY job: maximum retention in EXACTLY {target_duration} seconds.
 
-TASK: Extract the most shocking/valuable points from this transcription and turn them into a {target_duration}-second dopamine hit.
+TASK: SUMMARIZE the video subtitles below into a {target_duration}-second viral narration.
 
-TARGET: {target_words} words MINIMUM | {target_duration} seconds | {lang_instruction}
+CRITICAL WORD LIMIT: EXACTLY {target_words} words. NOT MORE. Count them.
+If you write more than {target_words + 10} words, the video will be TOO LONG and FAIL.
 
-INPUT (Full Transcription):
-{transcription[:8000]}
+TARGET: {target_words} words MAX | {target_duration} seconds | {lang_instruction}
+
+INPUT (YouTube Subtitles to summarize):
+{transcription[:6000]}
 
 ═══════════════════════════════════════════════════════════════
 STYLE OVERRIDE (CRITICAL - FOLLOW EXACTLY):
@@ -297,6 +307,81 @@ REMEMBER:
     return {"narration": text, "sentences": [text]}
 
 
+def generate_video_metadata(original_title: str, narration: str, language: str = "english") -> dict:
+    """Generate viral title, tags, and description for the video."""
+    print(f"[AI] Generating metadata for: {original_title[:50]}...")
+    
+    if not GROQ_API_KEY:
+        # Fallback if no API key
+        return {
+            "title": original_title[:50] + " #shorts",
+            "description": narration[:150] + "...",
+            "tags": ["shorts", "viral", "trending"]
+        }
+    
+    prompt = f"""Generate YouTube Shorts metadata based on this video.
+
+ORIGINAL VIDEO TITLE: {original_title}
+NARRATION SCRIPT: {narration[:500]}
+LANGUAGE: {language}
+
+Create:
+1. TITLE: Viral, clickbait-style title (max 60 chars, include emoji)
+   - Use curiosity gaps
+   - Numbers work well
+   - Questions hook viewers
+   
+2. DESCRIPTION: Short engaging description (2-3 lines)
+   - First line = hook
+   - Include call to action
+   - Keep it punchy
+
+3. TAGS: 10 relevant hashtags for Shorts
+
+Return JSON only:
+{{
+    "title": "Viral title with emoji 🔥",
+    "description": "Engaging description\\n\\nFollow for more!",
+    "tags": ["shorts", "viral", "trending", ...]
+}}
+"""
+    
+    url = "https://api.groq.com/openai/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {GROQ_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    
+    payload = {
+        "model": "llama-3.3-70b-versatile",
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.9,
+        "max_tokens": 500
+    }
+    
+    try:
+        response = requests.post(url, headers=headers, json=payload, timeout=30)
+        response.raise_for_status()
+        
+        result = response.json()
+        text = result['choices'][0]['message']['content'].strip()
+        
+        json_match = re.search(r'\{.*\}', text, re.DOTALL)
+        if json_match:
+            data = json.loads(json_match.group())
+            print(f"✓ Generated title: {data.get('title', '')[:50]}...")
+            return data
+    except Exception as e:
+        print(f"⚠️ Metadata generation failed: {e}")
+    
+    # Fallback
+    return {
+        "title": original_title[:50] + " #shorts",
+        "description": narration[:150] + "...\n\nFollow for more!",
+        "tags": ["shorts", "viral", "trending"]
+    }
+
+
 def generate_tts_with_timestamps(sentences: list, output_path: str, voice: str = "hi-IN-SwaraNeural") -> tuple:
     """Generate TTS sentence-by-sentence and track exact timestamps.
     Returns: (final_audio_path, list of (sentence, start_time, end_time, duration))
@@ -357,7 +442,7 @@ def generate_tts_with_timestamps(sentences: list, output_path: str, voice: str =
                 cmd = [
                     'edge-tts',
                     '--voice', voice,
-                    '--rate', '+20%',
+                    '--rate', '+30%',
                     '--pitch', '+0Hz',
                     '--text', sentence,
                     '--write-media', temp_file
@@ -369,7 +454,7 @@ def generate_tts_with_timestamps(sentences: list, output_path: str, voice: str =
             cmd = [
                 'edge-tts',
                 '--voice', voice,
-                '--rate', '+20%',
+                '--rate', '+30%',
                 '--pitch', '+0Hz',
                 '--text', sentence,
                 '--write-media', temp_file
@@ -721,9 +806,10 @@ def assemble_final_video(
     tts_path: str,
     subtitle_path: str,
     music_path: str,
-    output_path: str
+    output_path: str,
+    original_audio_path: str = None
 ):
-    """Final assembly: video + TTS + music + subtitles + watermark."""
+    """Final assembly: video + TTS + original audio + music + subtitles + watermark."""
     print("Assembling final video with watermark...")
     
     subtitle_style = (
@@ -731,7 +817,7 @@ def assemble_final_video(
         "Outline=3,Shadow=2,MarginV=70,Alignment=2,Bold=1"
     )
     
-    # Copy subtitle to simple filename in temp dir to avoid path escaping issues
+    # Copy subtitle to temp location with simple name
     import shutil
     temp_sub = f"subs_{session_id}_temp.srt"
     shutil.copy(subtitle_path, temp_sub)
@@ -754,10 +840,29 @@ def assemble_final_video(
     
     filter_parts.append(f"[0:v]{watermark_filter}[vwm]")
     
-    if music_path and os.path.exists(music_path):
-        # Mix TTS with background music (low volume)
-        filter_parts.append("[2:a]volume=0.12,aloop=loop=-1:size=2e+09[music]")
-        filter_parts.append("[1:a][music]amix=inputs=2:duration=first:dropout_transition=2[a]")
+    # Audio mixing: TTS (main) + Original audio (quiet) + Music (optional)
+    # Input order: [0]=video, [1]=TTS, [2]=original_audio or music, [3]=music if original exists
+    
+    input_files = [video_path, tts_path]
+    audio_inputs = ["[1:a]"]  # TTS always first
+    
+    if original_audio_path and os.path.exists(original_audio_path):
+        input_files.append(original_audio_path)
+        filter_parts.append("[2:a]volume=0.10[orig]")  # Original at 10%
+        audio_inputs.append("[orig]")
+        
+        if music_path and os.path.exists(music_path):
+            input_files.append(music_path)
+            filter_parts.append("[3:a]volume=0.15,aloop=loop=-1:size=2e+09[music]")
+            audio_inputs.append("[music]")
+    elif music_path and os.path.exists(music_path):
+        input_files.append(music_path)
+        filter_parts.append("[2:a]volume=0.15,aloop=loop=-1:size=2e+09[music]")
+        audio_inputs.append("[music]")
+    
+    # Mix all audio streams
+    if len(audio_inputs) > 1:
+        filter_parts.append(f"{''.join(audio_inputs)}amix=inputs={len(audio_inputs)}:duration=first:dropout_transition=2[a]")
     else:
         filter_parts.append("[1:a]acopy[a]")
     
@@ -767,17 +872,13 @@ def assemble_final_video(
     filter_complex = ";".join(filter_parts)
     
     cmd = ['ffmpeg', '-y']
-    cmd += ['-i', video_path]
-    cmd += ['-i', tts_path]
-    
-    if music_path and os.path.exists(music_path):
-        cmd += ['-i', music_path]
+    for f in input_files:
+        cmd += ['-i', f]
     
     cmd += ['-filter_complex', filter_complex]
     cmd += ['-map', '[vout]', '-map', '[a]']
     cmd += ['-c:v', 'libx264', '-preset', 'fast', '-crf', '22']
     cmd += ['-c:a', 'aac', '-b:a', '192k']
-    # Don't use -shortest, let TTS audio dictate the length
     cmd += [output_path]
     
     try:
@@ -817,12 +918,20 @@ def main():
     # Step 1: Download (0-15%)
     print("PROGRESS: 0% - Starting video download...")
     print("Step 1/6: Downloading video...")
-    video_path = download_youtube_video(url)
+    download_result = download_youtube_video(url)
+    
+    # Handle both tuple return (new) and single return (old)
+    if isinstance(download_result, tuple):
+        video_path, original_title = download_result
+    else:
+        video_path = download_result
+        original_title = "AI Generated Short"
+    
     if not video_path:
         print("Error: Failed to download")
         sys.exit(1)
     video_path = video_path.replace(".webm", ".mp4")
-    print("✓ Downloaded")
+    print(f"✓ Downloaded: {original_title}")
     print("PROGRESS: 15% - Video downloaded successfully")
     
     # Step 2: Get Transcription (15-30%)
@@ -872,6 +981,21 @@ def main():
     # Step 5: Create video cuts (60-80%)
     print("\nPROGRESS: 60% - Creating video clips...")
     print("Step 5/6: Creating quick video cuts...")
+    
+    # Extract original audio first (before cutting strips audio)
+    original_audio_path = str(temp_dir / f"orig_audio_{session_id}.mp3")
+    try:
+        extract_cmd = [
+            'ffmpeg', '-y', '-i', video_path,
+            '-vn', '-acodec', 'libmp3lame', '-q:a', '4',
+            original_audio_path
+        ]
+        subprocess.run(extract_cmd, capture_output=True, check=True)
+        print("✓ Original audio extracted")
+    except:
+        original_audio_path = None
+        print("⚠️ No audio in original video")
+    
     num_cuts = max(len(sentences), int(tts_duration / 2.5))  # ~2.5 sec per cut
     cuts = create_video_cuts(video_path, tts_duration, num_cuts, str(temp_dir))
     print("PROGRESS: 70% - Video clips created")
@@ -894,8 +1018,17 @@ def main():
     music_path = str(music_file) if music_file.exists() else None
     
     final_output = output_dir / f"faceless_{session_id}.mp4"
-    assemble_final_video(concat_video, tts_path, subtitle_path, music_path, str(final_output))
+    assemble_final_video(concat_video, tts_path, subtitle_path, music_path, str(final_output), original_audio_path)
     print("PROGRESS: 95% - Video assembled, cleaning up...")
+    
+    # Generate metadata (title, tags, description)
+    print("\nPROGRESS: 96% - Generating video metadata...")
+    metadata = generate_video_metadata(original_title, narration, target_language)
+    
+    # Save metadata as JSON
+    metadata_path = output_dir / f"faceless_{session_id}_metadata.json"
+    with open(metadata_path, 'w', encoding='utf-8') as f:
+        json.dump(metadata, f, indent=2, ensure_ascii=False)
     
     # Cleanup
     print("\nCleaning up temp files...")
@@ -904,6 +1037,10 @@ def main():
     # Add audio_path if it was created (only if we did audio transcription)
     if 'audio_path' in locals() and audio_path:
         cleanup_files.append(audio_path)
+    
+    # Add original audio if extracted
+    if original_audio_path and os.path.exists(original_audio_path):
+        cleanup_files.append(original_audio_path)
     
     for f in cleanup_files:
         if f and os.path.exists(f):
@@ -915,6 +1052,10 @@ def main():
     print("PROGRESS: 100% - Complete!")
     print(f"\n{'='*60}")
     print(f"SUCCESS: {final_output}")
+    print(f"\n📺 TITLE: {metadata.get('title', 'N/A')}")
+    print(f"📝 DESCRIPTION: {metadata.get('description', 'N/A')[:100]}...")
+    print(f"🏷️ TAGS: {', '.join(metadata.get('tags', [])[:5])}")
+    print(f"\n📄 Metadata saved: {metadata_path}")
     print(f"{'='*60}\n")
 
 
