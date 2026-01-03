@@ -61,6 +61,63 @@ def get_video_duration(video_path: str) -> float:
     return float(result.stdout.strip())
 
 
+def download_youtube_subtitles(url: str) -> str:
+    """Download YouTube subtitles/captions directly."""
+    print("Downloading YouTube subtitles...")
+    
+    try:
+        # Try to get auto-generated or manual subtitles
+        cmd = [
+            'yt-dlp',
+            '--skip-download',
+            '--write-auto-sub',
+            '--write-sub',
+            '--sub-lang', 'en',
+            '--sub-format', 'vtt',
+            '--output', f'temp_subs_{session_id}',
+            url
+        ]
+        
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        
+        # Find the subtitle file
+        import glob
+        subtitle_files = glob.glob(f'temp_subs_{session_id}*.vtt')
+        
+        if subtitle_files:
+            subtitle_file = subtitle_files[0]
+            
+            # Parse VTT file to extract text
+            with open(subtitle_file, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # Extract text from VTT (remove timestamps and formatting)
+            lines = content.split('\n')
+            text_lines = []
+            for line in lines:
+                line = line.strip()
+                # Skip WEBVTT header, timestamps, and empty lines
+                if line and not line.startswith('WEBVTT') and not '-->' in line and not line.isdigit():
+                    # Remove VTT tags like <c>
+                    line = re.sub(r'<[^>]+>', '', line)
+                    text_lines.append(line)
+            
+            full_text = ' '.join(text_lines)
+            
+            # Cleanup
+            os.remove(subtitle_file)
+            
+            print(f"✓ Subtitles downloaded: {len(full_text.split())} words")
+            return full_text
+        else:
+            print("⚠️ No subtitles found, falling back to audio transcription")
+            return None
+            
+    except Exception as e:
+        print(f"⚠️ Subtitle download failed: {e}")
+        return None
+
+
 def rewrite_as_story(transcription: str, style: str = "documentary", language: str = "english", target_duration: int = 30) -> dict:
     """Use Groq to create complete story with looping savage ending."""
     print(f"[AI] Creating {target_duration}s story (Language: {language})...")
@@ -75,70 +132,136 @@ def rewrite_as_story(transcription: str, style: str = "documentary", language: s
         lang_instruction = "Simple Spoken English"
     
     # Dynamic word count based on target duration
-    # At +35% TTS speed: ~3.3 words/second
-    # Formula: duration * 3.3 = words needed
+    # At +20% TTS speed: ~3 words/second
+    # Tuned for engaging pace without gaps
     if target_duration == 20:
-        target_words = 85  # ~25 seconds actual
+        target_words = 65  # ~20 seconds engaging pace
     elif target_duration == 60:
-        target_words = 210  # ~63 seconds actual
+        target_words = 190  # ~60 seconds engaging pace
     else:  # 30 seconds default
-        target_words = 130  # ~40 seconds actual
+        target_words = 95  # ~30 seconds engaging pace
     
-    prompt = f"""You are an expert YouTube Shorts scripter. Your task is to rewrite the video transcription into a viral, curiosity-driven narration.
+    prompt = f"""You are a RUTHLESS YouTube Shorts scripter. Your ONLY job: maximum retention.
 
-TARGET DURATION: {target_duration} seconds ({target_words} words REQUIRED at FAST pace)
+TASK: Extract the most shocking/valuable points from this transcription and turn them into a {target_duration}-second dopamine hit.
 
-CRITICAL: The script MUST be AT LEAST {target_words - 10} words, IDEALLY {target_words} words.
-If you generate fewer words, the video will be too short and FAIL.
+TARGET: {target_words} words MINIMUM | {target_duration} seconds | {lang_instruction}
 
-INPUT TRANSCRIPTION:
-{transcription[:5000]}
+INPUT (Full Transcription):
+{transcription[:8000]}
 
-OBJECTIVE:
-Do NOT summarize. Re-narrate the content as a reaction-driven mystery.
-Flow: Hook -> Confusion -> Partial Reveal -> Twist -> Final Payoff.
+═══════════════════════════════════════════════════════════════
+STYLE OVERRIDE (CRITICAL - FOLLOW EXACTLY):
+═══════════════════════════════════════════════════════════════
+✓ DO NOT write in first person. EVER.
+✓ DO NOT narrate as the subject.
+✓ Narrate like a viral Shorts storyteller observing events.
+✓ Refer to the subject as "this guy", "this streamer", "this kid", or by name.
+✓ Compress time aggressively. Skip setup, jump straight to danger.
+✓ Every sentence must raise stakes or curiosity.
+✓ Treat the subject like a character in a survival story.
 
-STRICT STRUCTURE & TIMING:
-1. HOOK (0-2 sec): Shocking or confusing statement. No context.
-   - Example: "These bones aren't buried..."
-   - Rule: Must stop the scroll immediately.
-   
-2. CURIOSITY GAP (2-5 sec): Tell what is happening, but NOT why.
-   - Example: "They take real bones... and turn them into this."
-   - Rule: Keep it vague.
-   
-3. SLOW REVEAL (5-12 sec): Explain step-by-step. One idea per line.
-   - Example: "First, the bones are cleaned."
-   - Rule: Drip information slowly.
-   
-4. TWIST / PAYOFF (12-20 sec): The unexpected meaning or result.
-   - Example: "This isn't decoration. It's actually done to preserve history."
-   - Rule: Reframe earlier info.
-   
-5. CLOSING (Last 2 sec): Leave viewer thinking.
-   - Example: "Would you keep something like this?"
-   - Rule: Loop back or ask a question.
+BAD EXAMPLES (NEVER DO THIS):
+❌ "I'm nervous."
+❌ "I'm holding the GoPro."
+❌ "I'm about to go underwater."
+❌ "I decided to try this."
 
-WRITING RULES:
-- PERSPECTIVE: NEVER use "I" or "Me". Always refer to the subject as "He", "She", "This guy", or "This girl".
-- Language: {lang_instruction} (Strictly enforce this).
-- Short spoken lines (not written text).
-- NO "In this video...", NO educational tone.
-- 1 idea per line.
-- Natural pauses.
+GOOD EXAMPLES (EMULATE THIS):
+✓ "This guy jumped into shark-infested water with thousands watching."
+✓ "One wrong move here ends the stream permanently."
+✓ "Chat was cheering. The sharks didn't care."
+✓ "This could've ended very badly."
 
-Return valid JSON:
+═══════════════════════════════════════════════════════════════
+BANNED (Delete on sight):
+═══════════════════════════════════════════════════════════════
+❌ First person: "I", "me", "my", "we", "us", "our"
+❌ Passive voice: "it was discovered" → "scientists discovered"
+❌ Filler transitions: "so", "now", "then", "also", "additionally"
+❌ Soft endings: "pretty interesting", "kind of cool"
+❌ Setup phrases: "in this video", "today we'll", "let me show you"
+❌ Action descriptions: "he puts on the camera" → "one mistake here, footage becomes evidence"
+❌ Chronological narration: skip boring parts, jump to drama
+
+═══════════════════════════════════════════════════════════════
+REQUIRED (Non-negotiable):
+═══════════════════════════════════════════════════════════════
+✓ Third-person ONLY: "this guy", "this streamer", "he", "she", or name
+✓ Stakes in EVERY sentence: risk, consequence, or escalation
+✓ Outcomes, not actions: why it matters, what could go wrong
+✓ Pattern break every 3-5 seconds: change topic, reveal twist, ask question
+✓ At least ONE unresolved curiosity gap: tease but don't explain
+✓ Ending that creates FOMO or leaves them hanging
+✓ Specific numbers, names, facts (not vague descriptions)
+✓ Active voice ONLY
+✓ Compressed drama: cause → consequence, not step-by-step
+
+═══════════════════════════════════════════════════════════════
+HOOK TEMPLATES (First sentence MUST use one):
+═══════════════════════════════════════════════════════════════
+→ "This could've ended very badly."
+→ "People thought this was fake… until this happened."
+→ "Everyone in chat was cheering. They shouldn't have been."
+→ "This guy had no idea what he just started."
+→ "One mistake here, and the footage becomes evidence."
+
+═══════════════════════════════════════════════════════════════
+STRUCTURE (Strict):
+═══════════════════════════════════════════════════════════════
+[0-3s] HOOK (Warning-style, not introduction)
+→ Most shocking outcome. No context. No setup.
+→ Example: "This guy jumped into shark-infested waters… live… with zero backup."
+→ NOT: "I'm diving with sharks in South Africa and I'm nervous."
+
+[3-10s] BUILD TENSION (Compressed drama)
+→ Reveal stakes one by one
+→ Each sentence = new risk or consequence
+→ Example: "Chat was going wild. The sharks were circling. One wrong move."
+
+[10-20s] TWIST/CLIMAX (The thing they didn't expect)
+→ Reframe everything said before
+→ Example: "Then the camera cut out. For 47 seconds, nothing. Chat thought he was gone."
+
+[20-{target_duration}s] UNRESOLVED ENDING (Create FOMO)
+→ Leave them wanting more
+→ Example: "He survived. But what he saw down there… he won't talk about it."
+→ NOT: "So that's the story. Pretty crazy right?"
+
+═══════════════════════════════════════════════════════════════
+STORYTELLING CADENCE (Indian Shorts style):
+═══════════════════════════════════════════════════════════════
+→ Short sentences. Dramatic rhythm. Slightly informal.
+→ Example: "This guy thought it would be content. Sharks don't care about content. One slip, and this story ends differently."
+
+═══════════════════════════════════════════════════════════════
+QUALITY CHECK (Before submitting):
+═══════════════════════════════════════════════════════════════
+1. Any "I", "me", "my"? → FAIL. Rewrite in third person.
+2. Read each sentence. Does it add stakes or tension? If no → DELETE
+3. Count pattern breaks. Less than 3? → ADD MORE
+4. Check ending. Does it resolve everything? → REWRITE to leave gap
+5. Count words. Less than {target_words}? → FAIL (add more content)
+6. Any passive voice? → REWRITE in active voice
+7. Any action descriptions without stakes? → REWRITE to show consequences
+
+═══════════════════════════════════════════════════════════════
+OUTPUT (JSON only):
+═══════════════════════════════════════════════════════════════
 {{
-    "sentences": [
-        "Hook line",
-        "Curiosity line",
-        "Slow reveal line 1",
-        "Slow reveal line 2",
-        "Twist line",
-        "Closing line"
-    ],
-    "narration": "Full paragraph text of the script."
+    "hook": "The opening line (must be a warning, not introduction)",
+    "sentences": ["Sentence 1", "Sentence 2", ...],
+    "narration": "Full script as one paragraph",
+    "word_count": actual_count,
+    "pattern_breaks": number_of_topic_shifts,
+    "curiosity_gaps": number_of_unresolved_questions,
+    "first_person_check": "PASS or FAIL (must be PASS)"
 }}
+
+REMEMBER: 
+- Diary entry = boring. Movie trailer = viral.
+- "I'm nervous" = skip. "This guy had no idea what he just started" = gold.
+- If it doesn't make them say "wait, what?" → it's not good enough.
 """
     
     url = "https://api.groq.com/openai/v1/chat/completions"
@@ -172,6 +295,129 @@ Return valid JSON:
         return {"narration": data.get('narration', ''), "sentences": sentences}
     
     return {"narration": text, "sentences": [text]}
+
+
+def generate_tts_with_timestamps(sentences: list, output_path: str, voice: str = "hi-IN-SwaraNeural") -> tuple:
+    """Generate TTS sentence-by-sentence and track exact timestamps.
+    Returns: (final_audio_path, list of (sentence, start_time, end_time, duration))
+    """
+    print(f"Generating TTS with real timestamps... (Voice: {voice})")
+    
+    sentence_audio_files = []
+    sentence_timestamps = []
+    current_time = 0.0
+    
+    for i, sentence in enumerate(sentences):
+        if not sentence.strip():
+            continue
+            
+        print(f"  [{i+1}/{len(sentences)}] Generating: {sentence[:50]}...")
+        
+        # Check for Google Voice
+        if voice.startswith("google:"):
+            print(f"Attempting Google TTS...")
+            try:
+                google_voice_name = voice.split(":", 1)[1]
+                api_key = os.getenv("GOOGLE_TTS_API_KEY") 
+                if not api_key:
+                    api_key = os.getenv("GEMINI_API_KEY")
+                
+                if not api_key:
+                    raise Exception("Missing GOOGLE_TTS_API_KEY in .env")
+                
+                temp_file = f"temp_tts_sentence_{session_id}_{i}.mp3"
+                url = f"https://texttospeech.googleapis.com/v1/text:synthesize?key={api_key}"
+                data = {
+                    "input": {"text": sentence},
+                    "voice": {"languageCode": "en-US", "name": google_voice_name},
+                    "audioConfig": {
+                        "audioEncoding": "MP3",
+                        "speakingRate": 1.2,
+                        "pitch": 0.0
+                    }
+                }
+                
+                response = requests.post(url, json=data)
+                if response.status_code == 200:
+                    import base64
+                    audio_content = response.json().get("audioContent")
+                    if audio_content:
+                        with open(temp_file, "wb") as f:
+                            f.write(base64.b64decode(audio_content))
+                    else:
+                        raise Exception("No audio content")
+                else:
+                    raise Exception(f"Google TTS failed: {response.status_code}")
+                    
+            except Exception as e:
+                print(f"⚠️ Google TTS failed: {e}, falling back to Edge TTS")
+                voice = "en-US-GuyNeural" if "Male" in voice else "en-US-JennyNeural"
+                temp_file = f"temp_tts_sentence_{session_id}_{i}.mp3"
+                
+                cmd = [
+                    'edge-tts',
+                    '--voice', voice,
+                    '--rate', '+20%',
+                    '--pitch', '+0Hz',
+                    '--text', sentence,
+                    '--write-media', temp_file
+                ]
+                subprocess.run(cmd, capture_output=True, check=True)
+        else:
+            # Edge TTS
+            temp_file = f"temp_tts_sentence_{session_id}_{i}.mp3"
+            cmd = [
+                'edge-tts',
+                '--voice', voice,
+                '--rate', '+20%',
+                '--pitch', '+0Hz',
+                '--text', sentence,
+                '--write-media', temp_file
+            ]
+            subprocess.run(cmd, capture_output=True, check=True)
+        
+        # Get exact duration using ffprobe
+        duration = get_audio_duration(temp_file)
+        
+        # Record timestamp
+        start_time = current_time
+        end_time = current_time + duration
+        sentence_timestamps.append({
+            'sentence': sentence,
+            'start': start_time,
+            'end': end_time,
+            'duration': duration,
+            'index': i
+        })
+        
+        sentence_audio_files.append(temp_file)
+        current_time = end_time
+    
+    # Concatenate all audio files
+    print(f"Concatenating {len(sentence_audio_files)} audio segments...")
+    concat_list = f"concat_audio_{session_id}.txt"
+    with open(concat_list, 'w') as f:
+        for audio_file in sentence_audio_files:
+            f.write(f"file '{audio_file}'\n")
+    
+    cmd = [
+        'ffmpeg', '-y', '-f', 'concat', '-safe', '0',
+        '-i', concat_list,
+        '-c', 'copy',
+        output_path
+    ]
+    subprocess.run(cmd, capture_output=True, check=True)
+    
+    # Cleanup
+    os.remove(concat_list)
+    for audio_file in sentence_audio_files:
+        if os.path.exists(audio_file):
+            os.remove(audio_file)
+    
+    total_duration = current_time
+    print(f"✓ TTS generated: {total_duration:.1f}s with {len(sentence_timestamps)} segments")
+    
+    return output_path, sentence_timestamps
 
 
 def generate_tts(text: str, output_path: str, voice: str = "hi-IN-SwaraNeural") -> str:
@@ -235,19 +481,19 @@ def generate_tts(text: str, output_path: str, voice: str = "hi-IN-SwaraNeural") 
     cmd = [
         'edge-tts',
         '--voice', voice,
-        '--rate', '+35%',  # Breathless, fast-paced
-        '--pitch', '+5Hz',
+        '--rate', '+20%',  # Engaging pace, still understandable
+        '--pitch', '+0Hz',  # Normal pitch
         '--text', text,
         '--write-media', temp_tts
     ]
     
     subprocess.run(cmd, capture_output=True, check=True)
     
-    # Remove silence gaps using FFmpeg
-    print("Removing audio gaps...")
+    # Light silence removal - cut dead air but keep natural flow
+    print("Trimming dead air...")
     silence_cmd = [
         'ffmpeg', '-y', '-i', temp_tts,
-        '-af', 'silenceremove=start_periods=1:start_silence=0.1:start_threshold=-50dB,silenceremove=stop_periods=-1:stop_duration=0.1:stop_threshold=-50dB',
+        '-af', 'silenceremove=start_periods=1:start_silence=0.5:start_threshold=-40dB,silenceremove=stop_periods=-1:stop_duration=0.5:stop_threshold=-40dB',
         output_path
     ]
     subprocess.run(silence_cmd, capture_output=True, check=True)
@@ -256,7 +502,7 @@ def generate_tts(text: str, output_path: str, voice: str = "hi-IN-SwaraNeural") 
     if os.path.exists(temp_tts):
         os.remove(temp_tts)
     
-    print(f"✓ TTS generated (zero gaps)")
+    print(f"✓ TTS generated (engaging pace)")
     return output_path
 
 
@@ -308,6 +554,68 @@ def create_video_cuts(video_path: str, duration: float, num_cuts: int, output_di
     
     print(f"✓ Created {len(cuts)} video cuts")
     return cuts
+
+
+def create_subtitles_from_timestamps(sentence_timestamps: list, output_path: str):
+    """Create SRT subtitles from real audio timestamps.
+    Shows 2-3 words per frame with emphasis on key words.
+    """
+    print("Creating timestamp-synced subtitles...")
+    
+    counter = 1
+    
+    # Keywords to emphasize (numbers, names, emotional words)
+    emphasis_patterns = [
+        r'\b\d+\b',  # numbers
+        r'\b[A-Z][a-z]+\b',  # proper nouns
+        r'\b(amazing|shocking|incredible|never|always|must|secret|truth|real|fake)\b'  # emotional
+    ]
+    
+    with open(output_path, 'w', encoding='utf-8') as f:
+        for ts_data in sentence_timestamps:
+            sentence = ts_data['sentence']
+            start_time = ts_data['start']
+            duration = ts_data['duration']
+            
+            words = sentence.split()
+            if not words:
+                continue
+            
+            # Show 2-3 words at a time
+            words_per_chunk = 2 if len(words) > 10 else 3
+            time_per_word = duration / len(words)
+            
+            current_offset = 0
+            for i in range(0, len(words), words_per_chunk):
+                chunk_words = words[i:i+words_per_chunk]
+                chunk_text = ' '.join(chunk_words).upper()
+                
+                # Check for emphasis
+                emphasized = False
+                for pattern in emphasis_patterns:
+                    if re.search(pattern, chunk_text, re.IGNORECASE):
+                        emphasized = True
+                        break
+                
+                # Calculate exact timing
+                chunk_start = start_time + current_offset
+                chunk_duration = time_per_word * len(chunk_words)
+                chunk_end = chunk_start + chunk_duration
+                
+                f.write(f"{counter}\n")
+                f.write(f"{format_time(chunk_start)} --> {format_time(chunk_end)}\n")
+                
+                # Add emphasis marker if needed (will be styled in video)
+                if emphasized:
+                    f.write(f"<b>{chunk_text}</b>\n\n")
+                else:
+                    f.write(f"{chunk_text}\n\n")
+                
+                counter += 1
+                current_offset += chunk_duration
+    
+    print(f"✓ Subtitles created ({counter-1} segments, timestamp-synced)")
+    return output_path
 
 
 def create_subtitles(sentences: list, duration: float, output_path: str):
@@ -367,8 +675,8 @@ def format_time(seconds: float) -> str:
     return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
 
 
-def concatenate_clips(clips: list, output_path: str):
-    """Concatenate video clips."""
+def concatenate_clips(clips: list, output_path: str, target_duration: float = None):
+    """Concatenate video clips and loop to match target duration."""
     print("Concatenating video clips...")
     
     # Create concat file
@@ -377,16 +685,34 @@ def concatenate_clips(clips: list, output_path: str):
         for clip in clips:
             f.write(f"file '{clip}'\n")
     
+    # First concatenate all clips
+    temp_concat = f"temp_concat_{session_id}.mp4"
     cmd = [
         'ffmpeg', '-y', '-f', 'concat', '-safe', '0',
         '-i', concat_file,
-        '-c:v', 'libx264', '-preset', 'fast',
-        output_path
+        '-c', 'copy',
+        temp_concat
     ]
-    
     subprocess.run(cmd, capture_output=True, check=True)
+    
+    # If target duration specified, loop the concatenated video
+    if target_duration:
+        cmd = [
+            'ffmpeg', '-y',
+            '-stream_loop', '-1',  # Loop infinitely
+            '-i', temp_concat,
+            '-t', str(target_duration),  # Cut to exact duration
+            '-c:v', 'libx264', '-preset', 'fast',
+            output_path
+        ]
+        subprocess.run(cmd, capture_output=True, check=True)
+        os.remove(temp_concat)
+    else:
+        # Just rename if no looping needed
+        os.rename(temp_concat, output_path)
+    
     os.remove(concat_file)
-    print(f"✓ Clips concatenated")
+    print(f"✓ Clips concatenated{' and looped to match duration' if target_duration else ''}")
     return output_path
 
 
@@ -451,7 +777,7 @@ def assemble_final_video(
     cmd += ['-map', '[vout]', '-map', '[a]']
     cmd += ['-c:v', 'libx264', '-preset', 'fast', '-crf', '22']
     cmd += ['-c:a', 'aac', '-b:a', '192k']
-    cmd += ['-shortest']
+    # Don't use -shortest, let TTS audio dictate the length
     cmd += [output_path]
     
     try:
@@ -488,66 +814,105 @@ def main():
     temp_dir = Path(__file__).parent / "temp"
     temp_dir.mkdir(exist_ok=True)
     
-    # Step 1: Download
+    # Step 1: Download (0-15%)
+    print("PROGRESS: 0% - Starting video download...")
     print("Step 1/6: Downloading video...")
     video_path = download_youtube_video(url)
     if not video_path:
         print("Error: Failed to download")
         sys.exit(1)
     video_path = video_path.replace(".webm", ".mp4")
-    print(f"✓ Downloaded")
+    print("✓ Downloaded")
+    print("PROGRESS: 15% - Video downloaded successfully")
     
-    # Step 2: Transcribe
-    print("\nStep 2/6: Transcribing...")
-    audio_path = str(temp_dir / f"audio_{session_id}.wav")
-    extract_audio(video_path, audio_path)
-    transcriptions = transcribeAudio(audio_path)
-    full_text = " ".join([t[0] for t in transcriptions])
+    # Step 2: Get Transcription (15-30%)
+    print("\nPROGRESS: 15% - Getting video transcription...")
+    print("Step 2/6: Transcribing...")
+    
+    # Try subtitle download first (faster and more accurate)
+    full_text = download_youtube_subtitles(url)
+    
+    # Fall back to audio transcription if no subtitles
+    if not full_text:
+        print("PROGRESS: 18% - Extracting audio for transcription...")
+        audio_path = str(temp_dir / f"audio_{session_id}.wav")
+        extract_audio(video_path, audio_path)
+        print("PROGRESS: 20% - Audio extracted, transcribing...")
+        transcriptions = transcribeAudio(audio_path)
+        full_text = " ".join([t[0] for t in transcriptions])
+    
     print(f"✓ Transcribed: {len(full_text.split())} words")
+    print(f"✓ Full content: {len(full_text)} characters")
+    print("PROGRESS: 30% - Transcription complete")
     
-    # Step 3: AI rewrite
-    print(f"\nStep 3/6: AI creating {target_duration}s narration ({target_language})...")
+    # Step 3: AI rewrite (30-45%)
+    print(f"\nPROGRESS: 30% - AI creating {target_duration}s narration...")
+    print(f"Step 3/6: AI creating {target_duration}s narration ({target_language})...")
     result = rewrite_as_story(full_text, style, target_language, target_duration)
     sentences = result['sentences']
     narration = ' '.join(sentences)
+    print("PROGRESS: 45% - AI script created")
     
-    # Step 4: Generate TTS
-    print("\nStep 4/6: Generating TTS...")
+    # Step 4: Generate TTS with timestamps (45-60%)
+    print(f"\nPROGRESS: 45% - Generating TTS with real timestamps...")
+    print(f"Step 4/6: Generating TTS sentence-by-sentence...")
+    print(f"Generated script: {len(narration.split())} words in {len(sentences)} sentences")
+    
     tts_path = str(temp_dir / f"tts_{session_id}.mp3")
-    generate_tts(narration, tts_path, voice)
-    tts_duration = get_audio_duration(tts_path)
+    tts_path, sentence_timestamps = generate_tts_with_timestamps(sentences, tts_path, voice)
     
-    # Step 5: Create video cuts
-    print("\nStep 5/6: Creating quick video cuts...")
+    tts_duration = sentence_timestamps[-1]['end'] if sentence_timestamps else 0
+    print(f"TTS Audio Duration: {tts_duration:.1f}s (from real timestamps)")
+    print("PROGRESS: 60% - TTS audio generated with perfect timing")
+    
+    if tts_duration < target_duration * 0.7:  # Less than 70% of target
+        print(f"⚠️ WARNING: TTS is {tts_duration:.1f}s, much shorter than target {target_duration}s!")
+        print(f"   Try increasing word count or check TTS settings.")
+    
+    # Step 5: Create video cuts (60-80%)
+    print("\nPROGRESS: 60% - Creating video clips...")
+    print("Step 5/6: Creating quick video cuts...")
     num_cuts = max(len(sentences), int(tts_duration / 2.5))  # ~2.5 sec per cut
     cuts = create_video_cuts(video_path, tts_duration, num_cuts, str(temp_dir))
+    print("PROGRESS: 70% - Video clips created")
     
-    # Concatenate cuts
+    # Concatenate cuts and loop to match TTS duration
     concat_video = str(temp_dir / f"concat_{session_id}.mp4")
-    concatenate_clips(cuts, concat_video)
+    concatenate_clips(cuts, concat_video, tts_duration)
+    print("PROGRESS: 75% - Video concatenated and looped")
     
-    # Create subtitles
+    # Create timestamp-synced subtitles
     subtitle_path = str(temp_dir / f"subs_{session_id}.srt")
-    create_subtitles(sentences, tts_duration, subtitle_path)
+    create_subtitles_from_timestamps(sentence_timestamps, subtitle_path)
+    print("PROGRESS: 80% - Timestamp-synced subtitles created")
     
-    # Step 6: Final assembly
-    print("\nStep 6/6: Final assembly...")
+    # Step 6: Final assembly (80-100%)
+    print("\nPROGRESS: 80% - Final assembly starting...")
+    print("Step 6/6: Final assembly...")
     music_dir = Path(__file__).parent.parent.parent / "public" / "music"
     music_file = music_dir / f"{music_mood}.mp3"
     music_path = str(music_file) if music_file.exists() else None
     
     final_output = output_dir / f"faceless_{session_id}.mp4"
     assemble_final_video(concat_video, tts_path, subtitle_path, music_path, str(final_output))
+    print("PROGRESS: 95% - Video assembled, cleaning up...")
     
     # Cleanup
     print("\nCleaning up temp files...")
-    for f in [audio_path, tts_path, subtitle_path, concat_video] + cuts:
-        if os.path.exists(f):
+    cleanup_files = [tts_path, subtitle_path, concat_video] + cuts
+    
+    # Add audio_path if it was created (only if we did audio transcription)
+    if 'audio_path' in locals() and audio_path:
+        cleanup_files.append(audio_path)
+    
+    for f in cleanup_files:
+        if f and os.path.exists(f):
             try:
                 os.remove(f)
             except:
                 pass
     
+    print("PROGRESS: 100% - Complete!")
     print(f"\n{'='*60}")
     print(f"SUCCESS: {final_output}")
     print(f"{'='*60}\n")
