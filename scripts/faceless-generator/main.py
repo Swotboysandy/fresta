@@ -1234,7 +1234,7 @@ def main():
                     "model": "llama-3.3-70b-versatile",
                     "messages": [{
                         "role": "user",
-                        "content": f"Improve this text to flow better as a narration. Keep it natural and conversational. Remove any awkward phrasing. Keep the same meaning and length:\n\n{raw_narration}"
+                        "content": f"Rewrite this to flow better as narration. Make it natural and conversational. Fix awkward phrasing. Keep the same meaning and length. IMPORTANT: Return ONLY the improved text, no explanations, no 'here is', just the text itself:\n\n{raw_narration}"
                     }],
                     "temperature": 0.3
                 },
@@ -1242,6 +1242,11 @@ def main():
             ).json()
             
             improved_narration = improved_text['choices'][0]['message']['content'].strip()
+            
+            # Remove any prefix like "Here is the improved text:" if AI added it
+            improved_narration = re.sub(r'^(here is|here\'s).*?text[:\s]+', '', improved_narration, flags=re.IGNORECASE)
+            improved_narration = improved_narration.strip()
+            
             sentences = improved_narration.split('. ')
             narration = improved_narration
             print(f"✓ Text improved by Groq AI")
