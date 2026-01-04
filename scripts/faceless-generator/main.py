@@ -793,15 +793,40 @@ def generate_word_level_subtitles(audio_path: str, output_path: str):
                     f.write(f"{counter}\n")
                     f.write(f"{format_time(start)} --> {format_time(end)}\n")
                     
-                    # Check emphasis
-                    emphasized = False
-                    for pattern in emphasis_patterns:
-                        if re.search(pattern, text, re.IGNORECASE):
-                            emphasized = True
-                            break
-                            
-                    if emphasized:
-                        f.write(f"<b>{text}</b>\n\n")
+                    # Check for color highlighting
+                    # Numbers in RED, emphasis words in YELLOW
+                    number_pattern = r'\b\d+\b'
+                    
+                    # Comprehensive list of high-impact words for viral content
+                    emphasis_pattern = r'\b(' \
+                        r'amazing|awesome|shocking|incredible|never|always|must|secret|truth|real|fake|' \
+                        r'death|deadly|scary|danger|warning|wow|insane|crazy|wild|epic|' \
+                        r'money|rich|poor|expensive|cheap|free|winning|losing|' \
+                        r'best|worst|top|first|last|only|biggest|smallest|fastest|slowest|' \
+                        r'new|old|young|ancient|modern|future|past|' \
+                        r'wrong|right|bad|good|evil|perfect|terrible|horrible|' \
+                        r'love|hate|fear|hope|happy|sad|angry|excited|' \
+                        r'kill|save|help|destroy|create|break|fix|' \
+                        r'impossible|possible|easy|hard|simple|complex|' \
+                        r'stop|start|end|begin|finish|continue|' \
+                        r'watch|see|look|listen|hear|feel|think|know|' \
+                        r'change|transform|evolve|grow|shrink|' \
+                        r'power|weak|strong|mega|super|ultra|extreme|' \
+                        r'million|billion|thousand|hundred|zero|infinite|' \
+                        r'dark|light|black|white|red|blue|golden|' \
+                        r'legendary|rare|common|unique|special|normal|' \
+                        r'hack|trick|tip|secret|method|way|how|' \
+                        r'why|what|when|where|who|which|' \
+                        r'viral|trending|popular|famous|unknown|' \
+                        r'banned|illegal|forbidden|hidden|exposed|revealed' \
+                    r')\b'
+                    
+                    if re.search(number_pattern, text):
+                        # Red for numbers
+                        f.write(f"<font color=\"#FF0000\">{text}</font>\n\n")
+                    elif re.search(emphasis_pattern, text, re.IGNORECASE):
+                        # Yellow for emphasis words
+                        f.write(f"<font color=\"#FFFF00\">{text}</font>\n\n")
                     else:
                         f.write(f"{text}\n\n")
                     counter += 1
@@ -940,7 +965,7 @@ def assemble_final_video(
     # Watermark moves diagonally, bouncing around screen
     watermark_filter = (
         "drawtext="
-        "text='FRESTA':"
+        "text='ReelFrenzyX':"
         "fontsize=28:"
         "fontcolor=white@0.25:"  # 25% opacity - visible but subtle
         "shadowcolor=black@0.15:"
