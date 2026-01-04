@@ -117,30 +117,34 @@ export async function POST(request: NextRequest) {
                             error: "Process failed"
                         }));
                     } else {
-                        // Find the output file
-                        const match = dataString.match(/SUCCESS: (.+\.mp4)/);
-                        let videoUrl = null;
+                        // Find all output files (for batch mode)
+                        const variationMatches = dataString.matchAll(/✅ VARIATION \d+ SUCCESS: (.+\.mp4)/g);
+                        const videoUrls: string[] = [];
 
-                        if (match && match[1]) {
-                            const outputPath = match[1].trim();
-                            const fileName = path.basename(outputPath);
-                            const destPath = path.join(outputDir, fileName);
+                        for (const match of variationMatches) {
+                            if (match && match[1]) {
+                                const outputPath = match[1].trim();
+                                const fileName = path.basename(outputPath);
+                                const destPath = path.join(outputDir, fileName);
 
-                            // Move file to public folder
-                            if (fs.existsSync(outputPath)) {
-                                fs.copyFileSync(outputPath, destPath);
-                                fs.unlinkSync(outputPath);
-                                videoUrl = `/faceless/${fileName}`;
+                                // Move file to public folder
+                                if (fs.existsSync(outputPath)) {
+                                    fs.copyFileSync(outputPath, destPath);
+                                    fs.unlinkSync(outputPath);
+                                    videoUrls.push(`/faceless/${fileName}`);
+                                }
                             }
                         }
 
                         sendEvent("done", JSON.stringify({
                             success: true,
-                            videoUrl: videoUrl
+                            videoUrls: videoUrls,
+                            videoUrl: videoUrls[0] || null // Keep backward compatibility
                         }));
                     }
 
-                    controller.close();
+                    controller.close()
+                        ;
                 });
 
                 pythonProcess.on("error", (err) => {

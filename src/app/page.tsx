@@ -82,7 +82,7 @@ export default function Home() {
   const [facelessLanguage, setFacelessLanguage] = useState("english");
   const [isProcessingFaceless, setIsProcessingFaceless] = useState(false);
   const [facelessLogs, setFacelessLogs] = useState<string[]>([]);
-  const [facelessResult, setFacelessResult] = useState<string | null>(null);
+  const [facelessResult, setFacelessResult] = useState<string[]>([]);
   const [facelessError, setFacelessError] = useState<string | null>(null);
   const [facelessProgress, setFacelessProgress] = useState(0);
   const [facelessCurrentStep, setFacelessCurrentStep] = useState("");
@@ -102,7 +102,7 @@ export default function Home() {
 
     setIsProcessingFaceless(true);
     setFacelessLogs(["🚀 Initializing AI Video Generator..."]);
-    setFacelessResult(null);
+    setFacelessResult([]);
     setFacelessError(null);
     setFacelessProgress(0);
     setFacelessCurrentStep("Initializing...");
@@ -163,9 +163,11 @@ export default function Home() {
               setFacelessLogs([...currentLogs]);
             } else if (event.type === "done") {
               const result = JSON.parse(event.data);
-              if (result.success && result.videoUrl) {
-                setFacelessResult(result.videoUrl);
-                currentLogs = [...currentLogs, "✅ Generation complete!"];
+              if (result.success && (result.videoUrls || result.videoUrl)) {
+                // Handle both array (batch mode) and single video (backward compat)
+                const urls = result.videoUrls || [result.videoUrl];
+                setFacelessResult(urls);
+                currentLogs = [...currentLogs, `✅ Generated ${urls.length} video(s) successfully!`];
                 setFacelessLogs([...currentLogs]);
               } else {
                 setFacelessError(result.error || "Generation failed");
@@ -566,29 +568,41 @@ export default function Home() {
                 )}
 
                 {/* Result */}
-                {facelessResult && (
-                  <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-2xl p-5 shadow-2xl shadow-emerald-900/10 text-center">
+                {facelessResult.length > 0 && (
+                  <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-2xl p-5 shadow-2xl shadow-emerald-900/10">
                     <div className="flex items-center justify-center gap-2 mb-4 text-emerald-400">
                       <PartyPopper className="w-5 h-5" />
-                      <h3 className="text-sm font-bold uppercase tracking-wide">Video Ready!</h3>
+                      <h3 className="text-sm font-bold uppercase tracking-wide">
+                        {facelessResult.length === 1 ? 'Video Ready!' : `${facelessResult.length} Variations Ready!`}
+                      </h3>
                     </div>
-                    <video
-                      src={facelessResult}
-                      controls
-                      className="w-full max-w-sm mx-auto rounded-xl shadow-lg border border-white/5 aspect-[9/16] bg-black"
-                    />
-                    <div className="flex gap-2 mt-4 justify-center">
-                      <a
-                        href={facelessResult}
-                        download="faceless_video.mp4"
-                        className="px-8 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-center text-xs flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-900/20"
-                      >
-                        <Download className="w-4 h-4" />
-                        Download
-                      </a>
+
+                    <div className={`grid gap-4 ${facelessResult.length === 1 ? 'grid-cols-1 max-w-sm mx-auto' : 'grid-cols-3'}`}>
+                      {facelessResult.map((videoUrl, index) => (
+                        <div key={index} className="space-y-2">
+                          <p className="text-xs text-white/40 text-center">Variation {index + 1}</p>
+                          <video
+                            src={videoUrl}
+                            controls
+                            className="w-full rounded-xl shadow-lg border border-white/5 aspect-[9/16] bg-black"
+                          />
+                          <a
+                            href={videoUrl}
+                            download={`faceless_video_v${index + 1}.mp4`}
+                            className="block px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-center text-xs flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-900/20"
+                          >
+                            <Download className="w-4 h-4" />
+                            Download V{index + 1}
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+
+
+                    <div className="flex justify-center mt-4">
                       <button
                         onClick={() => {
-                          setFacelessResult(null);
+                          setFacelessResult([]);
                           setFacelessLogs([]);
                           setFacelessUrl("");
                         }}
@@ -605,7 +619,7 @@ export default function Home() {
           )}
 
         </div>
-      </main>
+      </main >
 
       <style jsx global>{`
         .custom-scrollbar::-webkit-scrollbar {
@@ -631,6 +645,6 @@ export default function Home() {
             transform-origin: left;
         }
       `}</style>
-    </div>
+    </div >
   );
 }

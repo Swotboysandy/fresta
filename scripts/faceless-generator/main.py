@@ -1039,9 +1039,13 @@ def main():
     reference_path = sys.argv[8] if len(sys.argv) > 8 else None
     if reference_path == "none": reference_path = None
     
+    # Generate 3 unique variations
+    NUM_VARIATIONS = 3
+    
     print(f"\n{'='*60}")
     print(f"AI FACELESS VIDEO GENERATOR v2")
     print(f"Fast-paced, no gaps, quick cuts")
+    print(f"🎬 BATCH MODE: Generating {NUM_VARIATIONS} unique variations")
     if use_coqui: print(f"MODE: Voice Cloning (Coqui XTTS)")
     print(f"Language: {target_language} | Duration: {target_duration}s")
     print(f"{'='*60}\n")
@@ -1051,7 +1055,7 @@ def main():
     temp_dir = Path(__file__).parent / "temp"
     temp_dir.mkdir(exist_ok=True)
     
-    # Step 1: Download (0-15%)
+    # Step 1: Download video once (reused for all variations)
     print("PROGRESS: 0% - Starting video download...")
     print("Step 1/6: Downloading video...")
     download_result = download_youtube_video(url)
@@ -1070,7 +1074,7 @@ def main():
     print(f"✓ Downloaded: {original_title}")
     print("PROGRESS: 15% - Video downloaded successfully")
     
-    # Step 2: Get Transcription (15-30%)
+    # Step 2: Get Transcription once (reused for all variations)
     print("\nPROGRESS: 15% - Getting video transcription...")
     print("Step 2/6: Transcribing...")
     
@@ -1080,7 +1084,7 @@ def main():
     # Fall back to audio transcription if no subtitles
     if not full_text:
         print("PROGRESS: 18% - Extracting audio for transcription...")
-        audio_path = str(temp_dir / f"audio_{session_id}.wav")
+        audio_path = str(temp_dir / f"audio_base.wav")
         extract_audio(video_path, audio_path)
         print("PROGRESS: 20% - Audio extracted, transcribing...")
         transcriptions = transcribeAudio(audio_path)
@@ -1090,104 +1094,118 @@ def main():
     print(f"✓ Full content: {len(full_text)} characters")
     print("PROGRESS: 30% - Transcription complete")
     
-    # Step 3: AI rewrite (30-45%)
-    print(f"\nPROGRESS: 30% - AI creating {target_duration}s narration...")
-    print(f"Step 3/6: AI creating {target_duration}s narration ({target_language})...")
-    result = rewrite_as_story(full_text, style, target_language, target_duration)
-    sentences = result['sentences']
-    narration = ' '.join(sentences)
-    print("PROGRESS: 45% - AI script created")
-    
-    # Step 4: Generate TTS with timestamps (45-60%)
-    print(f"\nPROGRESS: 45% - Generating TTS with real timestamps...")
-    print(f"Step 4/6: Generating TTS sentence-by-sentence...")
-    print(f"Generated script: {len(narration.split())} words in {len(sentences)} sentences")
-    
-    tts_path = str(temp_dir / f"tts_{session_id}.mp3")
-    tts_path, sentence_timestamps = generate_tts_with_timestamps(sentences, tts_path, voice, use_coqui, reference_path, target_language)
-    
-    tts_duration = sentence_timestamps[-1]['end'] if sentence_timestamps else 0
-    print(f"TTS Audio Duration: {tts_duration:.1f}s (from real timestamps)")
-    print("PROGRESS: 60% - TTS audio generated with perfect timing")
-    
-    if tts_duration < target_duration * 0.7:  # Less than 70% of target
-        print(f"⚠️ WARNING: TTS is {tts_duration:.1f}s, much shorter than target {target_duration}s!")
-        print(f"   Try increasing word count or check TTS settings.")
-    
-    # Step 5: Create video cuts (60-80%)
-    print("\nPROGRESS: 60% - Creating video clips...")
-    print("Step 5/6: Creating quick video cuts...")
-    
-    # Step 5: Create video cuts (60-80%)
-    print("\nPROGRESS: 60% - Creating video clips...")
-    print("Step 5/6: Creating quick video cuts...")
-    
-    # NOTE: Original audio is now preserved in the cuts themselves via 'create_video_cuts'
-    
-    num_cuts = max(len(sentences), int(tts_duration / 2.5))  # ~2.5 sec per cut
-    cuts = create_video_cuts(video_path, tts_duration, num_cuts, str(temp_dir))
-    print("PROGRESS: 70% - Video clips created")
-    
-    # Concatenate cuts and loop to match TTS duration
-    concat_video = str(temp_dir / f"concat_{session_id}.mp4")
-    concatenate_clips(cuts, concat_video, tts_duration)
-    print("PROGRESS: 75% - Video concatenated and looped")
-    
-    # Create timestamp-synced subtitles (Whisper Word-Level)
-    subtitle_path = str(temp_dir / f"subs_{session_id}.srt")
-    print("Generating subtitles using Whisper...")
-    if not generate_word_level_subtitles(tts_path, subtitle_path):
-        print("Falling back to sentence-level subtitles...")
-        create_subtitles_from_timestamps(sentence_timestamps, subtitle_path)
+    # Generate NUM_VARIATIONS unique videos
+    all_outputs = []
+    for variation in range(1, NUM_VARIATIONS + 1):
+        print(f"\n{'='*60}")
+        print(f"🎬 GENERATING VARIATION {variation}/{NUM_VARIATIONS}")
+        print(f"{'='*60}\n")
         
-    print("PROGRESS: 80% - Timestamp-synced subtitles created")
+        # Create unique session ID for each variation
+        global session_id
+        session_id = str(uuid.uuid4())[:8]
+        
+        # Step 3: AI rewrite with variation indicator (30-45%)
+        print(f"\nPROGRESS: 30% - AI creating {target_duration}s narration (Variation {variation})...")
+        print(f"Step 3/6: AI creating unique narration #{variation} ({target_language})...")
+        
+        # Add variation instruction to get different narration each time
+        result = rewrite_as_story(full_text, f"{style} (Version {variation}, make it unique)", target_language, target_duration)
+        sentences = result['sentences']
+        narration = ' '.join(sentences)
+        print("PROGRESS: 45% - AI script created")
+        
+        # ... rest of the generation continues for each variation ...
+        # (Keep all the existing code from Step 4 onwards)
     
-    # Step 6: Final assembly (80-100%)
-    print("\nPROGRESS: 80% - Final assembly starting...")
-    print("Step 6/6: Final assembly...")
-    music_dir = Path(__file__).parent.parent.parent / "public" / "music"
-    music_file = music_dir / f"{music_mood}.mp3"
-    music_path = str(music_file) if music_file.exists() else None
+        # Step 4: Generate TTS with timestamps (45-60%)
+        print(f"\nPROGRESS: 45% - Generating TTS with real timestamps...")
+        print(f"Step 4/6: Generating TTS sentence-by-sentence...")
+        print(f"Generated script: {len(narration.split())} words in {len(sentences)} sentences")
+        
+        tts_path = str(temp_dir / f"tts_{session_id}.mp3")
+        tts_path, sentence_timestamps = generate_tts_with_timestamps(sentences, tts_path, voice, use_coqui, reference_path, target_language)
+        
+        tts_duration = sentence_timestamps[-1]['end'] if sentence_timestamps else 0
+        print(f"TTS Audio Duration: {tts_duration:.1f}s (from real timestamps)")
+        print("PROGRESS: 60% - TTS audio generated with perfect timing")
+        
+        if tts_duration < target_duration * 0.7:  # Less than 70% of target
+            print(f"⚠️ WARNING: TTS is {tts_duration:.1f}s, much shorter than target {target_duration}s!")
+            print(f"   Try increasing word count or check TTS settings.")
+        
+        # Step 5: Create video cuts (60-80%)
+        print("\nPROGRESS: 60% - Creating video clips...")
+        print("Step 5/6: Creating quick video cuts...")
+        
+        # NOTE: Original audio is now preserved in the cuts themselves via 'create_video_cuts'
+        
+        num_cuts = max(len(sentences), int(tts_duration / 2.5))  # ~2.5 sec per cut
+        cuts = create_video_cuts(video_path, tts_duration, num_cuts, str(temp_dir))
+        print("PROGRESS: 70% - Video clips created")
+        
+        # Concatenate cuts and loop to match TTS duration
+        concat_video = str(temp_dir / f"concat_{session_id}.mp4")
+        concatenate_clips(cuts, concat_video, tts_duration)
+        print("PROGRESS: 75% - Video concatenated and looped")
+        
+        # Create timestamp-synced subtitles (Whisper Word-Level)
+        subtitle_path = str(temp_dir / f"subs_{session_id}.srt")
+        print("Generating subtitles using Whisper...")
+        if not generate_word_level_subtitles(tts_path, subtitle_path):
+            print("Falling back to sentence-level subtitles...")
+            create_subtitles_from_timestamps(sentence_timestamps, subtitle_path)
+            
+        print("PROGRESS: 80% - Timestamp-synced subtitles created")
+        
+        # Step 6: Final assembly (80-100%)
+        print("\nPROGRESS: 80% - Final assembly starting...")
+        print("Step 6/6: Final assembly...")
+        music_dir = Path(__file__).parent.parent.parent / "public" / "music"
+        music_file = music_dir / f"{music_mood}.mp3"
+        music_path = str(music_file) if music_file.exists() else None
+        
+        final_output = output_dir / f"faceless_{session_id}_v{variation}.mp4"
+        assemble_final_video(concat_video, tts_path, subtitle_path, music_path, str(final_output))
+        print("PROGRESS: 95% - Video assembled, cleaning up...")
+        
+        # Generate metadata (title, tags, description)
+        print("\nPROGRESS: 96% - Generating video metadata...")
+        metadata = generate_video_metadata(f"{original_title} - Variation {variation}", narration, target_language)
+        
+        # Save metadata as JSON
+        metadata_path = output_dir / f"faceless_{session_id}_v{variation}_metadata.json"
+        with open(metadata_path, 'w', encoding='utf-8') as f:
+            json.dump(metadata, f, indent=2, ensure_ascii=False)
+        
+        # Cleanup temp files for this variation
+        print("\nCleaning up temp files...")
+        cleanup_files = [tts_path, subtitle_path, concat_video] + cuts
+        
+        for f in cleanup_files:
+            if f and os.path.exists(f):
+                try:
+                    os.remove(f)
+                except:
+                    pass
+        
+        print("PROGRESS: 100% - Variation Complete!")
+        print(f"\n{'='*60}")
+        print(f"✅ VARIATION {variation} SUCCESS: {final_output}")
+        print(f"📺 TITLE: {metadata.get('title', 'N/A')}")
+        print(f"📝 DESCRIPTION: {metadata.get('description', 'N/A')[:100]}...")
+        print(f"🏷️ TAGS: {', '.join(metadata.get('tags', [])[:5])}")
+        print(f"📄 Metadata saved: {metadata_path}")
+        print(f"{'='*60}\n")
+        
+        all_outputs.append(str(final_output))
     
-    final_output = output_dir / f"faceless_{session_id}.mp4"
-    assemble_final_video(concat_video, tts_path, subtitle_path, music_path, str(final_output))
-    print("PROGRESS: 95% - Video assembled, cleaning up...")
-    
-    # Generate metadata (title, tags, description)
-    print("\nPROGRESS: 96% - Generating video metadata...")
-    metadata = generate_video_metadata(original_title, narration, target_language)
-    
-    # Save metadata as JSON
-    metadata_path = output_dir / f"faceless_{session_id}_metadata.json"
-    with open(metadata_path, 'w', encoding='utf-8') as f:
-        json.dump(metadata, f, indent=2, ensure_ascii=False)
-    
-    # Cleanup
-    print("\nCleaning up temp files...")
-    cleanup_files = [tts_path, subtitle_path, concat_video] + cuts
-    
-    # Add audio_path if it was created (only if we did audio transcription)
-    if 'audio_path' in locals() and audio_path:
-        cleanup_files.append(audio_path)
-    
-    # Add original audio if extracted (Removed)
-    # if 'original_audio_path' in locals() and original_audio_path and os.path.exists(original_audio_path):
-    #     cleanup_files.append(original_audio_path)
-    
-    for f in cleanup_files:
-        if f and os.path.exists(f):
-            try:
-                os.remove(f)
-            except:
-                pass
-    
-    print("PROGRESS: 100% - Complete!")
+    # Final summary after all variations
     print(f"\n{'='*60}")
-    print(f"SUCCESS: {final_output}")
-    print(f"\n📺 TITLE: {metadata.get('title', 'N/A')}")
-    print(f"📝 DESCRIPTION: {metadata.get('description', 'N/A')[:100]}...")
-    print(f"🏷️ TAGS: {', '.join(metadata.get('tags', [])[:5])}")
-    print(f"\n📄 Metadata saved: {metadata_path}")
+    print(f"🎉 ALL {NUM_VARIATIONS} VARIATIONS COMPLETE!")
+    print(f"{'='*60}")
+    for i, output in enumerate(all_outputs, 1):
+        print(f"  {i}. {output}")
     print(f"{'='*60}\n")
 
 
