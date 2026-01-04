@@ -1045,7 +1045,8 @@ def assemble_final_video(
     
     # Mix all audio streams
     if len(audio_inputs) > 1:
-        filter_parts.append(f"{''.join(audio_inputs)}amix=inputs={len(audio_inputs)}:duration=first:dropout_transition=2[a]")
+        # Use normalize=0 to prevent volume reduction (keeps TTS loud, others background)
+        filter_parts.append(f"{''.join(audio_inputs)}amix=inputs={len(audio_inputs)}:duration=first:dropout_transition=2:normalize=0[a]")
     else:
         filter_parts.append("[1:a]acopy[a]")
     
@@ -1156,82 +1157,38 @@ def main():
         global session_id
         session_id = str(uuid.uuid4())[:8]
         
-        # Step 3: Use DIRECT subtitles from different time segments (30-45%)
-        print(f"\nPROGRESS: 30% - Extracting subtitle segment for Variation {variation}...")
-        print(f"Step 3/6: Using direct subtitles from source #{variation} ({target_language})...")
+        # Step 3: Generate AI commentary (not direct subtitles!) (30-45%)
+        print(f"\nPROGRESS: 30% - Generating AI commentary for Variation {variation}...")
+        print(f"Step 3/6: Creating third-person explanation #{variation} ({target_language})...")
         
-        # Split subtitles into 3 time-based segments
-        # Calculate which portion of subtitles to use based on variation
+        # Split subtitles into 3 time-based segments for context
         sentences_all = full_text.split('. ')
         total_sentences = len(sentences_all)
-        
-        # Each variation gets a different 1/3 of the video
         segment_size = total_sentences // NUM_VARIATIONS
         
         if variation == 1:
-            # First 1/3 of video
             start_idx = 0
             end_idx = segment_size
             segment_name = "START (first 1/3)"
         elif variation == 2:
-            # Middle 1/3 of video
             start_idx = segment_size
             end_idx = segment_size * 2
             segment_name = "MIDDLE (second 1/3)"
         else:
-            # Last 1/3 of video
             start_idx = segment_size * 2
             end_idx = total_sentences
             segment_name = "END (last 1/3)"
         
-        # Get the specific segment for this variation
-        segment_sentences = sentences_all[start_idx:end_idx]
-        segment_text = '. '.join(segment_sentences)
+        # Get subtitle segment as CONTEXT (not final script)
+        context_sentences = sentences_all[start_idx:end_idx]
+        context_text = '. '.join(context_sentences[:30])  # Use first 30 sentences as context
         
-        # Calculate how many sentences we need for target duration (assuming 3 words per second)
-        words_per_second = 3.5
-        target_words = int(target_duration * words_per_second)
+        print(f"Using {segment_name} as context for AI commentary")
         
-        # Take first N sentences that fit the duration
-        selected_sentences = []
-        word_count = 0
-        for sent in segment_sentences:
-            words_in_sent = len(sent.split())
-            if word_count + words_in_sent > target_words:
-                break
-            selected_sentences.append(sent.strip())
-            word_count += words_in_sent
-        
-        # Hard limit: If we have too many sentences, cut them down
-        # This ensures we NEVER exceed 30 seconds
-        max_sentences = 15  # Roughly 2 seconds per sentence
-        if len(selected_sentences) > max_sentences:
-            selected_sentences = selected_sentences[:max_sentences]
-            print(f"⚠️ Trimmed to {max_sentences} sentences to stay within 30s")
-        
-        # Use actual subtitles as narration (no AI rewrite)
-        sentences = selected_sentences
-        
-        # Add channel/title context at the beginning for personalization
-        # Extract channel name or person name from title if available
-        title_parts = original_title.split('|')[0].strip()  # Get first part before any separators
-        
-        # Add intro sentence with the source context
-        if variation == 1:
-            intro = f"This is from {title_parts}"
-        elif variation == 2:
-            intro = f"Continuing from {title_parts}"
-        else:
-            intro = f"Final part from {title_parts}"
-        
-        # Combine intro with actual subtitles
-        raw_sentences = [intro] + selected_sentences
-        raw_narration = '. '.join(raw_sentences)
-        
-        # Use Groq to improve text flow and readability
-        print(f"Improving text with Groq AI...")
+        # Generate third-person explanatory narration using Groq
+        print(f"Generating explanatory commentary with Groq AI...")
         try:
-            improved_text = requests.post(
+            response = requests.post(
                 "https://api.groq.com/openai/v1/chat/completions",
                 headers={
                     "Authorization": f"Bearer {GROQ_API_KEY}",
@@ -1241,31 +1198,58 @@ def main():
                     "model": "llama-3.3-70b-versatile",
                     "messages": [{
                         "role": "user",
-                        "content": f"Rewrite this to flow better as narration. Make it natural and conversational. Fix awkward phrasing. Keep the same meaning and length. IMPORTANT: Return ONLY the improved text, no explanations, no 'here is', just the text itself:\n\n{raw_narration}"
+                        "content": f"""Based on this video transcript excerpt, create a SHORT third-person narration that EXPLAINS what's happening.
+
+CONTEXT FROM VIDEO:
+{context_text}
+
+SOURCE CHANNEL: {original_title}
+
+RULES (VERY IMPORTANT):
+❌ Do NOT repeat dialogue
+❌ Do NOT quote what people said
+✅ EXPLAIN the moment/situation
+✅ Use third-person perspective
+✅ Be informative and neutral
+✅ 3-4 sentences ONLY
+✅ 12-20 seconds when spoken (60-80 words MAX)
+✅ Start with: "This is from {original_title.split('|')[0].strip()}"
+
+EXAMPLE STYLE:
+"This is from Speed. This moment caught everyone off guard. Speed didn't realize how fast the situation escalated, and that reaction is exactly why this clip went viral."
+
+Now write the narration. Return ONLY the narration text, nothing else:"""
                     }],
-                    "temperature": 0.3
+                    "temperature": 0.7,
+                    "max_tokens": 150
                 },
-                timeout=10
+                timeout=15
             ).json()
             
-            improved_narration = improved_text['choices'][0]['message']['content'].strip()
+            narration = response['choices'][0]['message']['content'].strip()
             
-            # Remove any prefix like "Here is the improved text:" if AI added it
-            improved_narration = re.sub(r'^(here is|here\'s).*?text[:\s]+', '', improved_narration, flags=re.IGNORECASE)
-            improved_narration = improved_narration.strip()
+            # Clean up any quotes or dialogue markers
+            narration = re.sub(r'^["\']+|["\']+$', '', narration)
+            narration = re.sub(r'Here is.*?:', '', narration, flags=re.IGNORECASE).strip()
             
-            sentences = improved_narration.split('. ')
-            narration = improved_narration
-            print(f"✓ Text improved by Groq AI")
+            sentences = narration.split('. ')
+            sentences = [s.strip() for s in sentences if s.strip()]
+            
+            # Hard limit: Maximum 4 sentences
+            if len(sentences) > 4:
+                sentences = sentences[:4]
+                narration = '. '.join(sentences)
+            
+            print(f"✓ Generated {len(sentences)} sentence commentary")
+            print(f"✓ Preview: {narration[:100]}...")
+            
         except Exception as e:
-            print(f"⚠️ Groq improvement failed, using original: {e}")
-            sentences = raw_sentences
-            narration = raw_narration
+            print(f"⚠️ Groq commentary failed: {e}")
+            # Fallback: Simple context-based narration
+            narration = f"This is from {original_title.split('|')[0].strip()}. {'. '.join(context_sentences[:3])}"
+            sentences = narration.split('. ')[:4]
         
-        print(f"✓ Using {len(sentences)} sentences from {segment_name} of video")
-        print(f"✓ Added intro: '{intro}'")
-        print(f"✓ Segment: sentences {start_idx}-{end_idx}, using {len(selected_sentences)} sentences ({word_count} words)")
-        print("PROGRESS: 45% - Direct subtitle segment extracted")
+        print("PROGRESS: 45% - Commentary generated")
         
         # ... rest of the generation continues for each variation ...
         # (Keep all the existing code from Step 4 onwards)
