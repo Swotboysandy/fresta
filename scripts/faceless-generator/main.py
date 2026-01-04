@@ -131,14 +131,32 @@ def download_youtube_subtitles(url: str) -> str:
                         text_lines.append(line)
                         seen_lines.add(line.lower())
             
-            # Join and clean up extra spaces
+            # Join all lines
             full_text = ' '.join(text_lines)
-            full_text = re.sub(r'\s+', ' ', full_text).strip()
+            
+            # Advanced cleaning: Remove word-level duplicates (e.g., "I I am am")
+            words = full_text.split()
+            cleaned_words = []
+            prev_word = ""
+            
+            for word in words:
+                # Skip if same as previous word (case-insensitive)
+                if word.lower() != prev_word.lower():
+                    cleaned_words.append(word)
+                    prev_word = word
+            
+            # Reconstruct with proper spacing
+            full_text = ' '.join(cleaned_words)
+            
+            # Clean up punctuation spacing
+            full_text = re.sub(r'\s+([,.!?])', r'\1', full_text)  # Remove space before punctuation
+            full_text = re.sub(r'([,.!?])([A-Za-z])', r'\1 \2', full_text)  # Add space after punctuation
+            full_text = re.sub(r'\s+', ' ', full_text).strip()  # Clean multiple spaces
             
             # Cleanup
             os.remove(subtitle_file)
             
-            print(f"✓ Subtitles downloaded and cleaned: {len(full_text.split())} words")
+            print(f"✓ Subtitles cleaned: {len(cleaned_words)} words (removed {len(words) - len(cleaned_words)} duplicates)")
             return full_text
         else:
             print("⚠️ No subtitles found, falling back to audio transcription")
