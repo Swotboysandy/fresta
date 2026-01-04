@@ -1116,51 +1116,59 @@ def main():
         global session_id
         session_id = str(uuid.uuid4())[:8]
         
-        # Step 3: AI rewrite with TRULY DIFFERENT content (30-45%)
-        print(f"\nPROGRESS: 30% - AI creating {target_duration}s narration (Variation {variation})...")
-        print(f"Step 3/6: AI creating UNIQUE narration #{variation} ({target_language})...")
+        # Step 3: Use DIRECT subtitles from different time segments (30-45%)
+        print(f"\nPROGRESS: 30% - Extracting subtitle segment for Variation {variation}...")
+        print(f"Step 3/6: Using direct subtitles from source #{variation} ({target_language})...")
         
-        # Split source text into chunks and use different portions for each variation
-        words = full_text.split()
-        chunk_size = len(words) // NUM_VARIATIONS
-        start_idx = (variation - 1) * chunk_size
-        end_idx = start_idx + chunk_size + (chunk_size // 2)  # Overlap to ensure enough content
+        # Split subtitles into 3 time-based segments
+        # Calculate which portion of subtitles to use based on variation
+        sentences_all = full_text.split('. ')
+        total_sentences = len(sentences_all)
         
-        # Use different portion of source for each variation
-        variation_text = ' '.join(words[start_idx:end_idx]) if len(words) > chunk_size else full_text
+        # Each variation gets a different 1/3 of the video
+        segment_size = total_sentences // NUM_VARIATIONS
         
-        print(f"Using source text portion: words {start_idx}-{end_idx} ({len(variation_text.split())} words)")
+        if variation == 1:
+            # First 1/3 of video
+            start_idx = 0
+            end_idx = segment_size
+            segment_name = "START (first 1/3)"
+        elif variation == 2:
+            # Middle 1/3 of video
+            start_idx = segment_size
+            end_idx = segment_size * 2
+            segment_name = "MIDDLE (second 1/3)"
+        else:
+            # Last 1/3 of video
+            start_idx = segment_size * 2
+            end_idx = total_sentences
+            segment_name = "END (last 1/3)"
         
-        # EXTREMELY DIFFERENT prompts for each variation
-        variation_prompts = [
-            # Variation 1: Opening hook style
-            f"{style} narration - THIS IS VARIATION 1: Create a COMPLETELY UNIQUE opening hook story. "
-            f"Start with a shocking question or statement. Focus ONLY on the first major event or reveal. "
-            f"Keep it mysterious and hook the viewer immediately. Use DIFFERENT words and angles than any other version. "
-            f"DO NOT summarize the whole thing - just tell the BEGINNING in a fresh, unique way.",
-            
-            # Variation 2: Middle conflict style
-            f"{style} narration - THIS IS VARIATION 2: Create a COMPLETELY UNIQUE middle conflict story. "
-            f"Focus on the central drama, problem, or turning point. Build maximum tension. "
-            f"Start mid-action and escalate. Use COMPLETELY DIFFERENT phrasing from variation 1. "
-            f"DO NOT repeat any angles - tell the MIDDLE portion in an entirely fresh way with new vocabulary.",
-            
-            # Variation 3: Climax/resolution style  
-            f"{style} narration - THIS IS VARIATION 3: Create a COMPLETELY UNIQUE ending/climax story. "
-            f"Jump straight to the most dramatic finale or revelation. Build to the peak moment. "
-            f"Use ENTIRELY DIFFERENT words and perspective from variations 1 and 2. "
-            f"DO NOT rehash earlier parts - focus ONLY on the BIG ENDING in a totally unique style."
-        ]
+        # Get the specific segment for this variation
+        segment_sentences = sentences_all[start_idx:end_idx]
+        segment_text = '. '.join(segment_sentences)
         
-        style_instruction = variation_prompts[(variation - 1) % len(variation_prompts)]
+        # Calculate how many sentences we need for target duration (assuming 3 words per second)
+        words_per_second = 3.5
+        target_words = int(target_duration * words_per_second)
         
-        # Add extra randomness to temperature/creativity  
-        print(f"Generating with unique style instruction for variation {variation}...")
-        result = rewrite_as_story(variation_text, style_instruction, target_language, target_duration)
-        sentences = result['sentences']
-        narration = ' '.join(sentences)
-        print(f"✓ Unique script created for variation {variation}")
-        print("PROGRESS: 45% - AI script created")
+        # Take first N sentences that fit the duration
+        selected_sentences = []
+        word_count = 0
+        for sent in segment_sentences:
+            words_in_sent = len(sent.split())
+            if word_count + words_in_sent > target_words:
+                break
+            selected_sentences.append(sent.strip())
+            word_count += words_in_sent
+        
+        # Use actual subtitles as narration (no AI rewrite)
+        sentences = selected_sentences
+        narration = '. '.join(sentences)
+        
+        print(f"✓ Using {len(sentences)} sentences from {segment_name} of video")
+        print(f"✓ Segment: sentences {start_idx}-{end_idx}, using {len(selected_sentences)} sentences ({word_count} words)")
+        print("PROGRESS: 45% - Direct subtitle segment extracted")
         
         # ... rest of the generation continues for each variation ...
         # (Keep all the existing code from Step 4 onwards)
