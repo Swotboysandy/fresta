@@ -1202,6 +1202,13 @@ def main():
             selected_sentences.append(sent.strip())
             word_count += words_in_sent
         
+        # Hard limit: If we have too many sentences, cut them down
+        # This ensures we NEVER exceed 30 seconds
+        max_sentences = 15  # Roughly 2 seconds per sentence
+        if len(selected_sentences) > max_sentences:
+            selected_sentences = selected_sentences[:max_sentences]
+            print(f"⚠️ Trimmed to {max_sentences} sentences to stay within 30s")
+        
         # Use actual subtitles as narration (no AI rewrite)
         sentences = selected_sentences
         
@@ -1317,8 +1324,15 @@ def main():
         print("\nPROGRESS: 80% - Final assembly starting...")
         print("Step 6/6: Final assembly...")
         music_dir = Path(__file__).parent.parent.parent / "public" / "music"
-        music_file = music_dir / f"{music_mood}.mp3"
+        
+        # Use soft-piano music (loops automatically if needed)
+        music_file = music_dir / "soft-piano.mp3"
         music_path = str(music_file) if music_file.exists() else None
+        
+        if not music_path:
+            print("⚠️ Soft-piano music not found, trying default...")
+            music_file = music_dir / f"{music_mood}.mp3"
+            music_path = str(music_file) if music_file.exists() else None
         
         final_output = output_dir / f"faceless_{session_id}_v{variation}.mp4"
         assemble_final_video(concat_video, tts_path, subtitle_path, music_path, str(final_output))
