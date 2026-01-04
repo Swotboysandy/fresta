@@ -1129,14 +1129,33 @@ def main():
         # Use different portion of source for each variation
         variation_text = ' '.join(words[start_idx:end_idx]) if len(words) > chunk_size else full_text
         
-        # Very explicit variation instructions
+        print(f"Using source text portion: words {start_idx}-{end_idx} ({len(variation_text.split())} words)")
+        
+        # EXTREMELY DIFFERENT prompts for each variation
         variation_prompts = [
-            f"{style} - Focus on the BEGINNING of the story, introduce the main hook dramatically",
-            f"{style} - Focus on the MIDDLE conflict or key turning point, build tension",
-            f"{style} - Focus on the CLIMAX and ending, deliver the big reveal or conclusion"
+            # Variation 1: Opening hook style
+            f"{style} narration - THIS IS VARIATION 1: Create a COMPLETELY UNIQUE opening hook story. "
+            f"Start with a shocking question or statement. Focus ONLY on the first major event or reveal. "
+            f"Keep it mysterious and hook the viewer immediately. Use DIFFERENT words and angles than any other version. "
+            f"DO NOT summarize the whole thing - just tell the BEGINNING in a fresh, unique way.",
+            
+            # Variation 2: Middle conflict style
+            f"{style} narration - THIS IS VARIATION 2: Create a COMPLETELY UNIQUE middle conflict story. "
+            f"Focus on the central drama, problem, or turning point. Build maximum tension. "
+            f"Start mid-action and escalate. Use COMPLETELY DIFFERENT phrasing from variation 1. "
+            f"DO NOT repeat any angles - tell the MIDDLE portion in an entirely fresh way with new vocabulary.",
+            
+            # Variation 3: Climax/resolution style  
+            f"{style} narration - THIS IS VARIATION 3: Create a COMPLETELY UNIQUE ending/climax story. "
+            f"Jump straight to the most dramatic finale or revelation. Build to the peak moment. "
+            f"Use ENTIRELY DIFFERENT words and perspective from variations 1 and 2. "
+            f"DO NOT rehash earlier parts - focus ONLY on the BIG ENDING in a totally unique style."
         ]
         
         style_instruction = variation_prompts[(variation - 1) % len(variation_prompts)]
+        
+        # Add extra randomness to temperature/creativity  
+        print(f"Generating with unique style instruction for variation {variation}...")
         result = rewrite_as_story(variation_text, style_instruction, target_language, target_duration)
         sentences = result['sentences']
         narration = ' '.join(sentences)
