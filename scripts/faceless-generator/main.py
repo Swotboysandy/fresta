@@ -104,20 +104,41 @@ def download_youtube_subtitles(url: str) -> str:
             # Extract text from VTT (remove timestamps and formatting)
             lines = content.split('\n')
             text_lines = []
+            seen_lines = set()  # Track duplicates
+            
             for line in lines:
                 line = line.strip()
-                # Skip WEBVTT header, timestamps, and empty lines
-                if line and not line.startswith('WEBVTT') and not '-->' in line and not line.isdigit():
-                    # Remove VTT tags like <c>
+                # Skip WEBVTT header, timestamps, empty lines, and position markers
+                if (line and 
+                    not line.startswith('WEBVTT') and 
+                    not '-->' in line and 
+                    not line.isdigit() and
+                    not line.startswith('NOTE') and
+                    not 'align:' in line and
+                    not 'position:' in line):
+                    
+                    # Remove VTT tags like <c>, </c>, <v>, etc.
                     line = re.sub(r'<[^>]+>', '', line)
-                    text_lines.append(line)
+                    # Remove speaker labels like [Music], [Applause]
+                    line = re.sub(r'\[[^\]]+\]', '', line)
+                    # Remove timestamps within text
+                    line = re.sub(r'\d{2}:\d{2}:\d{2}\.\d{3}', '', line)
+                    
+                    line = line.strip()
+                    
+                    # Skip duplicates (YouTube subtitles often repeat lines)
+                    if line and line.lower() not in seen_lines:
+                        text_lines.append(line)
+                        seen_lines.add(line.lower())
             
+            # Join and clean up extra spaces
             full_text = ' '.join(text_lines)
+            full_text = re.sub(r'\s+', ' ', full_text).strip()
             
             # Cleanup
             os.remove(subtitle_file)
             
-            print(f"✓ Subtitles downloaded: {len(full_text.split())} words")
+            print(f"✓ Subtitles downloaded and cleaned: {len(full_text.split())} words")
             return full_text
         else:
             print("⚠️ No subtitles found, falling back to audio transcription")
