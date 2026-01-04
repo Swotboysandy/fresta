@@ -1164,9 +1164,25 @@ def main():
         
         # Use actual subtitles as narration (no AI rewrite)
         sentences = selected_sentences
+        
+        # Add channel/title context at the beginning for personalization
+        # Extract channel name or person name from title if available
+        title_parts = original_title.split('|')[0].strip()  # Get first part before any separators
+        
+        # Add intro sentence with the source context
+        if variation == 1:
+            intro = f"This is from {title_parts}"
+        elif variation == 2:
+            intro = f"Continuing from {title_parts}"
+        else:
+            intro = f"Final part from {title_parts}"
+        
+        # Combine intro with actual subtitles
+        sentences = [intro] + selected_sentences
         narration = '. '.join(sentences)
         
         print(f"✓ Using {len(sentences)} sentences from {segment_name} of video")
+        print(f"✓ Added intro: '{intro}'")
         print(f"✓ Segment: sentences {start_idx}-{end_idx}, using {len(selected_sentences)} sentences ({word_count} words)")
         print("PROGRESS: 45% - Direct subtitle segment extracted")
         
