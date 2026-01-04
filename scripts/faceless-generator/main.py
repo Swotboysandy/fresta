@@ -999,9 +999,10 @@ def assemble_final_video(
     """Final assembly: video + TTS + original audio (from video) + music + subtitles + watermark."""
     print("Assembling final video with watermark...")
     
+    # BOLD YELLOW subtitle style (like the reference image)
     subtitle_style = (
-        "FontName=Impact,FontSize=16,PrimaryColour=&HFFFFFF,OutlineColour=&H000000,"
-        "Outline=3,Shadow=2,MarginV=70,Alignment=2,Bold=1"
+        "FontName=Impact,FontSize=24,PrimaryColour=&H00FFFF,OutlineColour=&H000000,"
+        "Outline=4,Shadow=0,MarginV=70,Alignment=2,Bold=1"
     )
     
     # Copy subtitle to temp location with simple name
@@ -1217,8 +1218,37 @@ def main():
             intro = f"Final part from {title_parts}"
         
         # Combine intro with actual subtitles
-        sentences = [intro] + selected_sentences
-        narration = '. '.join(sentences)
+        raw_sentences = [intro] + selected_sentences
+        raw_narration = '. '.join(raw_sentences)
+        
+        # Use Groq to improve text flow and readability
+        print(f"Improving text with Groq AI...")
+        try:
+            improved_text = requests.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {GROQ_API_KEY}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": "llama-3.3-70b-versatile",
+                    "messages": [{
+                        "role": "user",
+                        "content": f"Improve this text to flow better as a narration. Keep it natural and conversational. Remove any awkward phrasing. Keep the same meaning and length:\n\n{raw_narration}"
+                    }],
+                    "temperature": 0.3
+                },
+                timeout=10
+            ).json()
+            
+            improved_narration = improved_text['choices'][0]['message']['content'].strip()
+            sentences = improved_narration.split('. ')
+            narration = improved_narration
+            print(f"✓ Text improved by Groq AI")
+        except Exception as e:
+            print(f"⚠️ Groq improvement failed, using original: {e}")
+            sentences = raw_sentences
+            narration = raw_narration
         
         print(f"✓ Using {len(sentences)} sentences from {segment_name} of video")
         print(f"✓ Added intro: '{intro}'")
