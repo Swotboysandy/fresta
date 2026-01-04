@@ -1105,14 +1105,31 @@ def main():
         global session_id
         session_id = str(uuid.uuid4())[:8]
         
-        # Step 3: AI rewrite with variation indicator (30-45%)
+        # Step 3: AI rewrite with TRULY DIFFERENT content (30-45%)
         print(f"\nPROGRESS: 30% - AI creating {target_duration}s narration (Variation {variation})...")
-        print(f"Step 3/6: AI creating unique narration #{variation} ({target_language})...")
+        print(f"Step 3/6: AI creating UNIQUE narration #{variation} ({target_language})...")
         
-        # Add variation instruction to get different narration each time
-        result = rewrite_as_story(full_text, f"{style} (Version {variation}, make it unique)", target_language, target_duration)
+        # Split source text into chunks and use different portions for each variation
+        words = full_text.split()
+        chunk_size = len(words) // NUM_VARIATIONS
+        start_idx = (variation - 1) * chunk_size
+        end_idx = start_idx + chunk_size + (chunk_size // 2)  # Overlap to ensure enough content
+        
+        # Use different portion of source for each variation
+        variation_text = ' '.join(words[start_idx:end_idx]) if len(words) > chunk_size else full_text
+        
+        # Very explicit variation instructions
+        variation_prompts = [
+            f"{style} - Focus on the BEGINNING of the story, introduce the main hook dramatically",
+            f"{style} - Focus on the MIDDLE conflict or key turning point, build tension",
+            f"{style} - Focus on the CLIMAX and ending, deliver the big reveal or conclusion"
+        ]
+        
+        style_instruction = variation_prompts[(variation - 1) % len(variation_prompts)]
+        result = rewrite_as_story(variation_text, style_instruction, target_language, target_duration)
         sentences = result['sentences']
         narration = ' '.join(sentences)
+        print(f"✓ Unique script created for variation {variation}")
         print("PROGRESS: 45% - AI script created")
         
         # ... rest of the generation continues for each variation ...
@@ -1140,8 +1157,12 @@ def main():
         
         # NOTE: Original audio is now preserved in the cuts themselves via 'create_video_cuts'
         
+        # Set random seed based on variation to get different clips from different parts
+        random.seed(variation * 1000 + int(time.time()))
+        
         num_cuts = max(len(sentences), int(tts_duration / 2.5))  # ~2.5 sec per cut
         cuts = create_video_cuts(video_path, tts_duration, num_cuts, str(temp_dir))
+        print(f"✓ Selected {len(cuts)} unique clips for variation {variation}")
         print("PROGRESS: 70% - Video clips created")
         
         # Concatenate cuts and loop to match TTS duration
