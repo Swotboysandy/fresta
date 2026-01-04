@@ -645,23 +645,34 @@ def get_audio_duration(audio_path: str) -> float:
     return float(result.stdout.strip())
 
 
-def create_video_cuts(video_path: str, duration: float, num_cuts: int, output_dir: str) -> list:
-    """Cut video into short clips (2-3 seconds each) for visual variety."""
-    print(f"Creating {num_cuts} video cuts...")
+def create_video_cuts(video_path: str, duration: float, num_cuts: int, output_dir: str, time_offset: float = 0.0) -> list:
+    """Cut video into short clips (2-3 seconds each) for visual variety.
+    
+    Args:
+        time_offset: Fraction (0.0-1.0) to offset the clip selection range.
+                     0.0 = start of video, 0.5 = middle, 1.0 = end
+    """
+    print(f"Creating {num_cuts} video cuts (offset: {time_offset*100:.0f}%)...")
     
     video_duration = get_video_duration(video_path)
     clip_duration = duration / num_cuts
     
-    # Generate random start times spread across video
-    available_duration = video_duration - clip_duration - 1
-    if available_duration < 0:
-        available_duration = video_duration / 2
+    # Calculate the search range based on offset
+    # Divide video into 3 regions and use different region per variation
+    usable_duration = video_duration - clip_duration - 1
+    if usable_duration < 0:
+        usable_duration = video_duration / 2
+    
+    # Apply offset to shift which part of video we select from
+    range_size = usable_duration * 0.6  # Use 60% of video per variation
+    range_start = time_offset * (usable_duration - range_size)
+    range_end = range_start + range_size
     
     cuts = []
     for i in range(num_cuts):
-        # Spread cuts across video duration
-        segment_size = available_duration / num_cuts
-        start_time = (i * segment_size) + random.uniform(0, segment_size * 0.5)
+        # Spread cuts within the offset range
+        segment_size = range_size / num_cuts
+        start_time = range_start + (i * segment_size) + random.uniform(0, segment_size * 0.5)
         start_time = max(0, min(start_time, video_duration - clip_duration))
         
         output_path = os.path.join(output_dir, f"cut_{session_id}_{i:03d}.mp4")
@@ -1160,9 +1171,15 @@ def main():
         # Set random seed based on variation to get different clips from different parts
         random.seed(variation * 1000 + int(time.time()))
         
+        # Calculate time offset for this variation (0.0 = start, 0.5 = middle, 1.0 = end)
+        # Variation 1: clips from 0-60% of video
+        # Variation 2: clips from 20-80% of video  
+        # Variation 3: clips from 40-100% of video
+        time_offset = (variation - 1) / (NUM_VARIATIONS - 1) if NUM_VARIATIONS > 1 else 0.0
+        
         num_cuts = max(len(sentences), int(tts_duration / 2.5))  # ~2.5 sec per cut
-        cuts = create_video_cuts(video_path, tts_duration, num_cuts, str(temp_dir))
-        print(f"✓ Selected {len(cuts)} unique clips for variation {variation}")
+        cuts = create_video_cuts(video_path, tts_duration, num_cuts, str(temp_dir), time_offset)
+        print(f"✓ Selected {len(cuts)} unique clips for variation {variation} (from {time_offset*100:.0f}% offset)")
         print("PROGRESS: 70% - Video clips created")
         
         # Concatenate cuts and loop to match TTS duration
