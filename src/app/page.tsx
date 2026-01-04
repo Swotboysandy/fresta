@@ -86,6 +86,8 @@ export default function Home() {
   const [facelessError, setFacelessError] = useState<string | null>(null);
   const [facelessProgress, setFacelessProgress] = useState(0);
   const [facelessCurrentStep, setFacelessCurrentStep] = useState("");
+  const [useCoqui, setUseCoqui] = useState(false); // Coqui TTS / Voice Cloning Toggle
+  const [cloneSample, setCloneSample] = useState<string | null>(null); // Base64 of uploaded reference audio
 
   // --- HANDLERS ---
 
@@ -115,7 +117,9 @@ export default function Home() {
           voice: facelessVoice,
           music: facelessMusic,
           language: facelessLanguage,
-          duration: 30  // Always 30 seconds
+          duration: 30, // Always 30 seconds
+          useCoqui,
+          cloneSample
         }),
       });
 
@@ -348,6 +352,54 @@ export default function Home() {
                   />
                 </div>
 
+                {/* Voice Cloning Mode (Coqui TTS) */}
+                <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4 mb-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                        🎙️ Voice Cloning Mode <span className="text-[10px] bg-purple-500/20 text-purple-300 px-1.5 py-0.5 rounded uppercase tracking-wider">Experimental</span>
+                      </h3>
+                      <p className="text-xs text-white/40 mt-0.5">Upload a voice sample to clone using Coqui TTS (Slower generation)</p>
+                    </div>
+                    <button
+                      onClick={() => setUseCoqui(!useCoqui)}
+                      disabled={isProcessingFaceless}
+                      className={`relative w-12 h-6 rounded-full transition-all ${useCoqui ? "bg-purple-600" : "bg-white/10"}`}
+                    >
+                      <span
+                        className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${useCoqui ? "left-7" : "left-1"}`}
+                      />
+                    </button>
+                  </div>
+
+                  {/* File Upload for Reference Audio */}
+                  {useCoqui && (
+                    <div className="mt-4 pt-4 border-t border-white/5 animate-in slide-in-from-top-2">
+                      <label className="block text-xs text-white/60 mb-2">Upload Reference Voice (WAV/MP3, ~10s recommended):</label>
+                      <input
+                        type="file"
+                        accept="audio/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                              setCloneSample(reader.result as string);
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                        className="block w-full text-sm text-white/50 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-purple-500/10 file:text-purple-400 hover:file:bg-purple-500/20 cursor-pointer"
+                      />
+                      {cloneSample && (
+                        <p className="text-[10px] text-emerald-400 mt-2 flex items-center gap-1">
+                          ✓ Voice sample loaded ready for cloning
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+
                 {/* Middle Section - 3 Equal Columns */}
                 <div className="grid grid-cols-3 gap-4">
 
@@ -370,7 +422,7 @@ export default function Home() {
                   </div>
 
                   {/* Voice */}
-                  <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5 flex flex-col">
+                  <div className={`bg-white/[0.02] border border-white/5 rounded-xl p-5 flex flex-col ${useCoqui ? "opacity-30 pointer-events-none grayscale" : ""}`}>
                     <label className="block text-base font-semibold text-white/50 mb-4">Voice</label>
                     <div className="space-y-2 flex-1 overflow-y-auto custom-scrollbar pr-1 max-h-[240px]">
                       {VOICES.map((v) => (

@@ -7,13 +7,16 @@ AI Faceless Video Generator v2
 
 import os
 import sys
-import json
-import subprocess
-import uuid
+import time
 import re
-import requests
+import json
 import random
+import requests
+import subprocess
 from pathlib import Path
+import shutil
+import uuid
+import whisper  # For word-level subtitles
 
 # Add parent directory for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "shorts-generator"))
@@ -382,7 +385,7 @@ Return JSON only:
     }
 
 
-def generate_tts_with_timestamps(sentences: list, output_path: str, voice: str = "hi-IN-SwaraNeural") -> tuple:
+def generate_tts_with_timestamps(sentences: list, output_path: str, voice: str = "hi-IN-SwaraNeural", use_coqui: bool = False, reference_path: str = None, language: str = "english") -> tuple:
     """Generate TTS sentence-by-sentence and track exact timestamps.
     Returns: (final_audio_path, list of (sentence, start_time, end_time, duration))
     """
@@ -392,12 +395,53 @@ def generate_tts_with_timestamps(sentences: list, output_path: str, voice: str =
     sentence_timestamps = []
     current_time = 0.0
     
+    # Init Coqui XTTS (Lazy Load)
+    coqui_model = None
+    if use_coqui and reference_path and os.path.exists(reference_path):
+        try:
+            print("Initializing Coqui XTTS (This may take a while first time)...")
+            from TTS.api import TTS
+            # Use CPU to avoid complex dependency issues, unless user has CUDA setup
+            coqui_model = TTS("tts_models/multilingual/multi-dataset/xtts_v2", gpu=False)
+            print("✓ Coqui XTTS Initialized")
+        except Exception as e:
+            print(f"⚠️ Coqui Init Failed: {e}. Will fallback to Standard TTS.")
+    
     for i, sentence in enumerate(sentences):
         if not sentence.strip():
             continue
             
         print(f"  [{i+1}/{len(sentences)}] Generating: {sentence[:50]}...")
         
+        if coqui_model:
+            temp_file = f"temp_tts_sentence_{session_id}_{i}.wav"
+            try:
+                # Map language name to code
+                lang_code = "en"
+                if language.lower() == "hindi": lang_code = "hi"
+                elif language.lower() == "spanish": lang_code = "es"
+                elif language.lower() == "french": lang_code = "fr"
+                
+                # XTTS Generation
+                coqui_model.tts_to_file(text=sentence, speaker_wav=reference_path, language=lang_code, file_path=temp_file)
+                
+                # Check success and skip fallback
+                if os.path.exists(temp_file):
+                    duration = get_audio_duration(temp_file)
+                    sentence_timestamps.append({
+                        'sentence': sentence,
+                        'start': current_time,
+                        'end': current_time + duration,
+                        'duration': duration,
+                        'index': i
+                    })
+                    sentence_audio_files.append(temp_file)
+                    current_time += duration
+                    continue # SUCCESS - Skip standard TTS
+            except Exception as e:
+                print(f"⚠️ Coqui Gen Failed: {e}")
+                # Fallback to standard TTS logic below
+                
         # Check for Google Voice
         if voice.startswith("google:"):
             print(f"Attempting Google TTS...")
@@ -629,8 +673,9 @@ def create_video_cuts(video_path: str, duration: float, num_cuts: int, output_di
             '-t', str(clip_duration),
             # More zoom: scale to 1400 width then crop to 1080 for tighter framing
             '-vf', 'scale=1400:-2,crop=1080:ih:(iw-1080)/2:0,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black',
+            '-vf', 'scale=1400:-2,crop=1080:ih:(iw-1080)/2:0,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black',
             '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '23',
-            '-an',  # No audio
+            '-c:a', 'aac', '-b:a', '128k', # Keep audio
             output_path
         ]
         
@@ -701,6 +746,73 @@ def create_subtitles_from_timestamps(sentence_timestamps: list, output_path: str
     
     print(f"✓ Subtitles created ({counter-1} segments, timestamp-synced)")
     return output_path
+
+
+def generate_word_level_subtitles(audio_path: str, output_path: str):
+    """Generate accurate 1-2 word subtitles using Whisper."""
+    print(f"Generating word-level subtitles using Whisper (Accuracy Mode)...")
+    
+    try:
+        model = whisper.load_model("base")
+        result = model.transcribe(audio_path, word_timestamps=True)
+        
+        emphasis_patterns = [
+            r'\b\d+\b',
+            r'\b[A-Z][a-z]+\b',
+            r'\b(amazing|shocking|incredible|never|always|must|secret|truth|real|fake|death|deadly|scary|money|rich)\b'
+        ]
+        
+        with open(output_path, 'w', encoding='utf-8') as f:
+            counter = 1
+            for segment in result["segments"]:
+                words = segment.get("words", [])
+                
+                i = 0
+                while i < len(words):
+                    chunk = [words[i]]
+                    
+                    # Group next word if appropriate
+                    if i + 1 < len(words):
+                        next_word = words[i+1]
+                        cur_text = chunk[0]['word'].strip()
+                        # Keep single if punctuation or long
+                        if not (cur_text.endswith(('.', '?', '!')) or len(cur_text) > 7 or len(next_word['word'].strip()) > 7):
+                             chunk.append(next_word)
+                             i += 1
+                    
+                    i += 1
+                    
+                    text = "".join([w['word'] for w in chunk]).strip().upper()
+                    start = chunk[0]['start']
+                    end = chunk[-1]['end']
+                    
+                    # Ensure minimum duration for visibility (0.1s)
+                    if end - start < 0.1:
+                        end = start + 0.1
+                    
+                    f.write(f"{counter}\n")
+                    f.write(f"{format_time(start)} --> {format_time(end)}\n")
+                    
+                    # Check emphasis
+                    emphasized = False
+                    for pattern in emphasis_patterns:
+                        if re.search(pattern, text, re.IGNORECASE):
+                            emphasized = True
+                            break
+                            
+                    if emphasized:
+                        f.write(f"<b>{text}</b>\n\n")
+                    else:
+                        f.write(f"{text}\n\n")
+                    counter += 1
+                    
+        print(f"✓ Whisper Subtitles created ({counter} chunks)")
+        return output_path
+        
+    except Exception as e:
+        print(f"⚠️ Whisper failed: {e}. Falling back to standard subtitles.")
+        return None
+
 
 
 def create_subtitles(sentences: list, duration: float, output_path: str):
@@ -788,6 +900,7 @@ def concatenate_clips(clips: list, output_path: str, target_duration: float = No
             '-i', temp_concat,
             '-t', str(target_duration),  # Cut to exact duration
             '-c:v', 'libx264', '-preset', 'fast',
+            '-c:a', 'aac', # Re-encode audio to ensure consistency
             output_path
         ]
         subprocess.run(cmd, capture_output=True, check=True)
@@ -806,14 +919,13 @@ def assemble_final_video(
     tts_path: str,
     subtitle_path: str,
     music_path: str,
-    output_path: str,
-    original_audio_path: str = None
+    output_path: str
 ):
-    """Final assembly: video + TTS + original audio + music + subtitles + watermark."""
+    """Final assembly: video + TTS + original audio (from video) + music + subtitles + watermark."""
     print("Assembling final video with watermark...")
     
     subtitle_style = (
-        "FontName=Impact,FontSize=24,PrimaryColour=&HFFFFFF,OutlineColour=&H000000,"
+        "FontName=Impact,FontSize=16,PrimaryColour=&HFFFFFF,OutlineColour=&H000000,"
         "Outline=3,Shadow=2,MarginV=70,Alignment=2,Bold=1"
     )
     
@@ -841,23 +953,18 @@ def assemble_final_video(
     filter_parts.append(f"[0:v]{watermark_filter}[vwm]")
     
     # Audio mixing: TTS (main) + Original audio (quiet) + Music (optional)
-    # Input order: [0]=video, [1]=TTS, [2]=original_audio or music, [3]=music if original exists
+    # Input order: [0]=video(with audio), [1]=TTS
     
     input_files = [video_path, tts_path]
     audio_inputs = ["[1:a]"]  # TTS always first
     
-    if original_audio_path and os.path.exists(original_audio_path):
-        input_files.append(original_audio_path)
-        filter_parts.append("[2:a]volume=0.10[orig]")  # Original at 10%
-        audio_inputs.append("[orig]")
-        
-        if music_path and os.path.exists(music_path):
-            input_files.append(music_path)
-            filter_parts.append("[3:a]volume=0.15,aloop=loop=-1:size=2e+09[music]")
-            audio_inputs.append("[music]")
-    elif music_path and os.path.exists(music_path):
+    # Use audio from the video clips themselves as background
+    filter_parts.append("[0:a]volume=0.15[orig]")
+    audio_inputs.append("[orig]")
+
+    if music_path and os.path.exists(music_path):
         input_files.append(music_path)
-        filter_parts.append("[2:a]volume=0.15,aloop=loop=-1:size=2e+09[music]")
+        filter_parts.append(f"[{len(input_files)-1}:a]volume=0.15,aloop=loop=-1[music]")
         audio_inputs.append("[music]")
     
     # Mix all audio streams
@@ -903,10 +1010,14 @@ def main():
     music_mood = sys.argv[4] if len(sys.argv) > 4 else "dramatic"
     target_language = sys.argv[5] if len(sys.argv) > 5 else "english"
     target_duration = int(sys.argv[6]) if len(sys.argv) > 6 else 30
+    use_coqui = sys.argv[7].lower() == "true" if len(sys.argv) > 7 else False
+    reference_path = sys.argv[8] if len(sys.argv) > 8 else None
+    if reference_path == "none": reference_path = None
     
     print(f"\n{'='*60}")
     print(f"AI FACELESS VIDEO GENERATOR v2")
     print(f"Fast-paced, no gaps, quick cuts")
+    if use_coqui: print(f"MODE: Voice Cloning (Coqui XTTS)")
     print(f"Language: {target_language} | Duration: {target_duration}s")
     print(f"{'='*60}\n")
     
@@ -968,7 +1079,7 @@ def main():
     print(f"Generated script: {len(narration.split())} words in {len(sentences)} sentences")
     
     tts_path = str(temp_dir / f"tts_{session_id}.mp3")
-    tts_path, sentence_timestamps = generate_tts_with_timestamps(sentences, tts_path, voice)
+    tts_path, sentence_timestamps = generate_tts_with_timestamps(sentences, tts_path, voice, use_coqui, reference_path, target_language)
     
     tts_duration = sentence_timestamps[-1]['end'] if sentence_timestamps else 0
     print(f"TTS Audio Duration: {tts_duration:.1f}s (from real timestamps)")
@@ -982,19 +1093,11 @@ def main():
     print("\nPROGRESS: 60% - Creating video clips...")
     print("Step 5/6: Creating quick video cuts...")
     
-    # Extract original audio first (before cutting strips audio)
-    original_audio_path = str(temp_dir / f"orig_audio_{session_id}.mp3")
-    try:
-        extract_cmd = [
-            'ffmpeg', '-y', '-i', video_path,
-            '-vn', '-acodec', 'libmp3lame', '-q:a', '4',
-            original_audio_path
-        ]
-        subprocess.run(extract_cmd, capture_output=True, check=True)
-        print("✓ Original audio extracted")
-    except:
-        original_audio_path = None
-        print("⚠️ No audio in original video")
+    # Step 5: Create video cuts (60-80%)
+    print("\nPROGRESS: 60% - Creating video clips...")
+    print("Step 5/6: Creating quick video cuts...")
+    
+    # NOTE: Original audio is now preserved in the cuts themselves via 'create_video_cuts'
     
     num_cuts = max(len(sentences), int(tts_duration / 2.5))  # ~2.5 sec per cut
     cuts = create_video_cuts(video_path, tts_duration, num_cuts, str(temp_dir))
@@ -1005,9 +1108,13 @@ def main():
     concatenate_clips(cuts, concat_video, tts_duration)
     print("PROGRESS: 75% - Video concatenated and looped")
     
-    # Create timestamp-synced subtitles
+    # Create timestamp-synced subtitles (Whisper Word-Level)
     subtitle_path = str(temp_dir / f"subs_{session_id}.srt")
-    create_subtitles_from_timestamps(sentence_timestamps, subtitle_path)
+    print("Generating subtitles using Whisper...")
+    if not generate_word_level_subtitles(tts_path, subtitle_path):
+        print("Falling back to sentence-level subtitles...")
+        create_subtitles_from_timestamps(sentence_timestamps, subtitle_path)
+        
     print("PROGRESS: 80% - Timestamp-synced subtitles created")
     
     # Step 6: Final assembly (80-100%)
@@ -1018,7 +1125,7 @@ def main():
     music_path = str(music_file) if music_file.exists() else None
     
     final_output = output_dir / f"faceless_{session_id}.mp4"
-    assemble_final_video(concat_video, tts_path, subtitle_path, music_path, str(final_output), original_audio_path)
+    assemble_final_video(concat_video, tts_path, subtitle_path, music_path, str(final_output))
     print("PROGRESS: 95% - Video assembled, cleaning up...")
     
     # Generate metadata (title, tags, description)
@@ -1038,9 +1145,9 @@ def main():
     if 'audio_path' in locals() and audio_path:
         cleanup_files.append(audio_path)
     
-    # Add original audio if extracted
-    if original_audio_path and os.path.exists(original_audio_path):
-        cleanup_files.append(original_audio_path)
+    # Add original audio if extracted (Removed)
+    # if 'original_audio_path' in locals() and original_audio_path and os.path.exists(original_audio_path):
+    #     cleanup_files.append(original_audio_path)
     
     for f in cleanup_files:
         if f and os.path.exists(f):

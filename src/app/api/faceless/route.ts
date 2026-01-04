@@ -7,7 +7,7 @@ import fs from "fs";
 
 export async function POST(request: NextRequest) {
     try {
-        const { url, style = "documentary", voice = "hi-IN-SwaraNeural", music = "cinematic", language = "english", duration = 30 } = await request.json();
+        const { url, style = "documentary", voice = "hi-IN-SwaraNeural", music = "cinematic", language = "english", duration = 30, useCoqui = false, cloneSample = null } = await request.json();
 
         if (!url) {
             return new Response(
@@ -36,7 +36,38 @@ export async function POST(request: NextRequest) {
                     controller.enqueue(encoder.encode(event));
                 };
 
-                const pythonProcess = spawn("python", [scriptPath, url, style, voice, music, language, duration.toString()], {
+                // Handle Reference Audio for Cloning
+                let referencePath = "none";
+                if (useCoqui && cloneSample) {
+                    try {
+                        const tempDir = path.join(cwd, "temp");
+                        if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+
+                        // Strip header if present (data:audio/wav;base64,...)
+                        const base64Data = cloneSample.replace(/^data:audio\/\w+;base64,/, "");
+                        const buffer = Buffer.from(base64Data, 'base64');
+                        referencePath = path.join(tempDir, `ref_${Date.now()}.wav`);
+                        fs.writeFileSync(referencePath, buffer);
+                        console.log("Saved reference audio:", referencePath);
+                    } catch (e) {
+                        console.error("Failed to save reference audio:", e);
+                    }
+                }
+
+                // Pass new args: [..., duration, useCoqui, referencePath]
+                const args = [
+                    scriptPath,
+                    url,
+                    style,
+                    voice,
+                    music,
+                    language,
+                    duration.toString(),
+                    useCoqui ? "true" : "false",
+                    referencePath
+                ];
+
+                const pythonProcess = spawn("python", args, {
                     cwd,
                     env: {
                         ...process.env,
