@@ -1000,9 +1000,10 @@ def assemble_final_video(
     print("Assembling final video with watermark...")
     
     # BOLD YELLOW subtitle style (like the reference image)
+    # BOLD YELLOW subtitle style (smaller size)
     subtitle_style = (
-        "FontName=Impact,FontSize=24,PrimaryColour=&H00FFFF,OutlineColour=&H000000,"
-        "Outline=4,Shadow=0,MarginV=70,Alignment=2,Bold=1"
+        "FontName=Impact,FontSize=12,PrimaryColour=&H00FFFF,OutlineColour=&H000000,"
+        "Outline=3,Shadow=0,MarginV=50,Alignment=2,Bold=1"
     )
     
     # Copy subtitle to temp location with simple name

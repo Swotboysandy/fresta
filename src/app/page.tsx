@@ -41,7 +41,7 @@ const VOICES = [
 const MUSIC_MOODS = [
   { id: "dramatic", label: "Dramatic", icon: Sparkles, color: "red" },
   { id: "cinematic", label: "Cinematic", icon: Film, color: "purple" },
-  { id: "chill", label: "Chill", icon: Smile, color: "blue" },
+  { id: "soft-piano", label: "Soft Piano", icon: Music, color: "blue" },
   { id: "upbeat", label: "Upbeat", icon: PartyPopper, color: "yellow" },
   { id: "none", label: "None", icon: VolumeX, color: "gray" },
 ];
