@@ -189,8 +189,10 @@ class VideoEditor:
         # Mix Audio
         filter_complex_parts.append(f"{''.join(audio_inputs)}amix=inputs={len(audio_inputs)}:duration=first:dropout_transition=2:normalize=0[a]")
         
-        # Add Subtitles - use simple path with forward slashes
-        filter_complex_parts.append(f"[vwm]subtitles={sub_path}[vout]")
+        # Add Subtitles - escape special chars for FFmpeg libass
+        # Characters that need escaping: : \ ' + [ ]
+        sub_path_escaped = sub_path.replace("'", r"\'").replace("+", r"\+").replace("[", r"\[").replace("]", r"\]")
+        filter_complex_parts.append(f"[vwm]subtitles='{sub_path_escaped}'[vout]")
         
         cmd = ['ffmpeg', '-y']
         for f in input_files:
