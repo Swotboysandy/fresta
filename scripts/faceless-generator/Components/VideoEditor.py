@@ -153,57 +153,34 @@ class VideoEditor:
     def assemble_final_video(self, video_path: str, tts_path: str, subtitle_path: str, music_path: str, output_path: str):
         print("Assembling final video...")
         
-        # Convert Windows paths to forward slashes (FFmpeg accepts this)
-        font_path = self.config.get_font_path().replace('\\', '/')
-        sub_path = subtitle_path.replace('\\', '/')
-        
-        # Watermark filter - static position (simpler, more reliable)
-        watermark_filter = (
-            "drawtext="
-            "text=ReelFrenzyX:"
-            "fontsize=28:"
-            "fontcolor=white@0.25:"
-            "shadowcolor=black@0.15:"
-            "shadowx=2:"
-            "shadowy=2:"
-            "x=50:"
-            "y=100:"
-            f"fontfile={font_path}"
-        )
-        
         # Setup inputs
         input_files = [video_path, tts_path]
-        filter_complex_parts = [f"[0:v]{watermark_filter}[vwm]"]
         audio_inputs = ["[1:a]"]
+        filter_parts = []
         
-        # Original Audio (Background)
-        filter_complex_parts.append("[0:a]volume=0.15[orig]")
+        # Original Audio (Background) - quiet
+        filter_parts.append("[0:a]volume=0.15[orig]")
         audio_inputs.append("[orig]")
         
         # Music
         if music_path and os.path.exists(music_path):
             input_files.append(music_path)
-            filter_complex_parts.append(f"[{len(input_files)-1}:a]volume=0.12,aloop=loop=-1[music]")
+            filter_parts.append(f"[{len(input_files)-1}:a]volume=0.12,aloop=loop=-1[music]")
             audio_inputs.append("[music]")
             
         # Mix Audio
-        filter_complex_parts.append(f"{''.join(audio_inputs)}amix=inputs={len(audio_inputs)}:duration=first:dropout_transition=2:normalize=0[a]")
-        
-        # Add Subtitles - escape special chars for FFmpeg libass
-        # Characters that need escaping: : \ ' + [ ]
-        sub_path_escaped = sub_path.replace("'", r"\'").replace("+", r"\+").replace("[", r"\[").replace("]", r"\]")
-        filter_complex_parts.append(f"[vwm]subtitles='{sub_path_escaped}'[vout]")
+        filter_parts.append(f"{''.join(audio_inputs)}amix=inputs={len(audio_inputs)}:duration=first:dropout_transition=2:normalize=0[a]")
         
         cmd = ['ffmpeg', '-y']
         for f in input_files:
             cmd += ['-i', f]
             
-        cmd += ['-filter_complex', ";".join(filter_complex_parts)]
-        cmd += ['-map', '[vout]', '-map', '[a]']
+        cmd += ['-filter_complex', ";".join(filter_parts)]
+        cmd += ['-map', '0:v', '-map', '[a]']  # Use original video, mixed audio
         cmd += ['-c:v', 'libx264', '-preset', 'medium', '-crf', '21']
         cmd += ['-c:a', 'aac', '-b:a', '192k']
+        cmd += ['-shortest']  # Match shortest stream
         cmd += [output_path]
         
         subprocess.run(cmd, check=True)
-
-
+        print("✓ Video assembled successfully")
