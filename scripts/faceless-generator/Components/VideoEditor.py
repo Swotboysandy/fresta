@@ -154,13 +154,14 @@ class VideoEditor:
         print("Assembling final video...")
         
         # Watermark filter
+        font_path = self.config.get_font_path().replace('\\', '/')
         watermark_filter = (
             "drawtext="
             "text='ReelFrenzyX':"
             "fontsize=28:fontcolor=white@0.25:shadowcolor=black@0.15:shadowx=2:shadowy=2:"
             "x='if(lt(mod(t\\,20)\\,10)\\, 50 + (mod(t\\,10)*90)\\, 950 - (mod(t\\,10)*90))':"
             "y='if(lt(mod(t\\,16)\\,8)\\, 100 + (mod(t\\,8)*180)\\, 1540 - (mod(t\\,8)*180))':"
-            f"fontfile='{self.config.get_font_path().replace('\\', '/')}'"
+            f"fontfile='{font_path}'"
         )
         
         # Setup inputs
