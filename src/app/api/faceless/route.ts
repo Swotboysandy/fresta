@@ -54,16 +54,17 @@ export async function POST(request: NextRequest) {
                     }
                 }
 
-                // Pass new args with flags (matching argparse interface)
+                // Pass args positionally (matching old main.py)
                 const args = [
                     scriptPath,
                     url,
-                    "--style", style,
-                    "--voice", voice,
-                    "--engine", "edge", // Default to edge for now
-                    "--language", language,
-                    "--duration", duration.toString(),
-                    "--variations", "1" // Generate 1 variation
+                    style,
+                    voice,
+                    music,
+                    language,
+                    duration.toString(),
+                    useCoqui ? "true" : "false",
+                    referencePath
                 ];
 
                 const pythonProcess = spawn("python", args, {
