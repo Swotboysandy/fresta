@@ -60,6 +60,13 @@ public/clips/
 scripts/shorts-generator/videos/
 scripts/faceless-generator/videos/
 *.mp4
-*.wav
+
+# Generated subtitles and temporary audio
+*.srt
+*.aac
+*.mp3
 !public/music/*.mp3
 
+# Faceless generator output and temp
+scripts/faceless-generator/output/
+scripts/faceless-generator/temp/

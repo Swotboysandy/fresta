@@ -183,12 +183,13 @@ def rewrite_as_story(transcription: str, style: str = "documentary", language: s
     # Dynamic word count based on target duration
     # At +30% TTS speed: ~3 words/second
     # Target: 28-35 second engaging videos
+    # UPDATED: Increased word counts by ~20-25% to account for tighter audio gaps
     if target_duration == 20:
-        target_words = 65  # ~20-22 seconds
+        target_words = 85  # Increased from 65
     elif target_duration == 60:
-        target_words = 190  # ~55-65 seconds
+        target_words = 230  # Increased from 190
     else:  # 30 seconds default
-        target_words = 95  # Target 28-35 seconds with good content
+        target_words = 120  # Increased from 95
     
     prompt = f"""You are a RUTHLESS YouTube Shorts scripter. Your ONLY job: maximum retention in EXACTLY {target_duration} seconds.
 
@@ -466,6 +467,20 @@ def generate_tts_with_timestamps(sentences: list, output_path: str, voice: str =
                 
                 # Check success and skip fallback
                 if os.path.exists(temp_file):
+                    # Trim silence
+                    trimmed_file = f"{temp_file.rsplit('.', 1)[0]}_trim.wav"
+                    silence_cmd = [
+                        'ffmpeg', '-y', '-i', temp_file,
+                        '-af', 'silenceremove=start_periods=1:start_silence=0.1:start_threshold=-50dB,silenceremove=stop_periods=-1:stop_duration=0.1:stop_threshold=-50dB',
+                        trimmed_file
+                    ]
+                    subprocess.run(silence_cmd, capture_output=True, check=True)
+                    
+                    # Replace original with trimmed
+                    if os.path.exists(trimmed_file):
+                        os.remove(temp_file)
+                        os.rename(trimmed_file, temp_file)
+
                     duration = get_audio_duration(temp_file)
                     sentence_timestamps.append({
                         'sentence': sentence,
@@ -531,6 +546,19 @@ def generate_tts_with_timestamps(sentences: list, output_path: str, voice: str =
                     '--write-media', temp_file
                 ]
                 subprocess.run(cmd, capture_output=True, check=True)
+                # Trim silence for Google TTS
+                if os.path.exists(temp_file):
+                     trimmed_file = f"{temp_file.rsplit('.', 1)[0]}_trim.mp3"
+                     silence_cmd = [
+                        'ffmpeg', '-y', '-i', temp_file,
+                        '-af', 'silenceremove=start_periods=1:start_silence=0.1:start_threshold=-50dB,silenceremove=stop_periods=-1:stop_duration=0.1:stop_threshold=-50dB',
+                        trimmed_file
+                     ]
+                     subprocess.run(silence_cmd, capture_output=True, check=True)
+                     if os.path.exists(trimmed_file):
+                         os.remove(temp_file)
+                         os.rename(trimmed_file, temp_file)
+
         else:
             # Edge TTS
             temp_file = f"temp_tts_sentence_{session_id}_{i}.mp3"
@@ -543,6 +571,19 @@ def generate_tts_with_timestamps(sentences: list, output_path: str, voice: str =
                 '--write-media', temp_file
             ]
             subprocess.run(cmd, capture_output=True, check=True)
+
+            # Trim silence for Edge TTS
+            if os.path.exists(temp_file):
+                 trimmed_file = f"{temp_file.rsplit('.', 1)[0]}_trim.mp3"
+                 silence_cmd = [
+                    'ffmpeg', '-y', '-i', temp_file,
+                    '-af', 'silenceremove=start_periods=1:start_silence=0.1:start_threshold=-50dB,silenceremove=stop_periods=-1:stop_duration=0.1:stop_threshold=-50dB',
+                    trimmed_file
+                 ]
+                 subprocess.run(silence_cmd, capture_output=True, check=True)
+                 if os.path.exists(trimmed_file):
+                     os.remove(temp_file)
+                     os.rename(trimmed_file, temp_file)
         
         # Get exact duration using ffprobe
         duration = get_audio_duration(temp_file)
