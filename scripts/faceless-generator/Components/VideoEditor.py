@@ -151,11 +151,24 @@ class VideoEditor:
             os.remove(concat_file)
             
     def assemble_final_video(self, video_path: str, tts_path: str, subtitle_path: str, music_path: str, output_path: str):
+        """Final assembly: video + TTS + original audio + music + subtitles."""
         print("Assembling final video...")
+        import shutil
         
-        # Step 1: Mix audio first (no video filters)
-        temp_output = output_path.replace('.mp4', '_temp.mp4')
+        session_id = os.path.basename(output_path).split('_')[1] if '_' in output_path else 'temp'
         
+        # Copy subtitle to simple temp location
+        temp_sub = str(self.config.temp_dir / f"subs_{session_id}_temp.srt")
+        if subtitle_path and os.path.exists(subtitle_path):
+            shutil.copy(subtitle_path, temp_sub)
+        
+        # Subtitle styling
+        subtitle_style = (
+            "FontName=Impact,FontSize=14,PrimaryColour=&H00FFFFFF,OutlineColour=&H000000,"
+            "Outline=3,Shadow=0,MarginV=50,Alignment=2,Bold=1"
+        )
+        
+        # Setup inputs
         input_files = [video_path, tts_path]
         audio_inputs = ["[1:a]"]
         filter_parts = []
@@ -173,45 +186,31 @@ class VideoEditor:
         # Mix Audio
         filter_parts.append(f"{''.join(audio_inputs)}amix=inputs={len(audio_inputs)}:duration=first:dropout_transition=2:normalize=0[a]")
         
+        # Add subtitles (original working approach)
+        if os.path.exists(temp_sub):
+            filter_parts.append(f"[0:v]subtitles={temp_sub}:force_style='{subtitle_style}'[vout]")
+            video_out = "[vout]"
+        else:
+            video_out = "0:v"
+        
+        filter_complex = ";".join(filter_parts)
+        
         cmd = ['ffmpeg', '-y']
         for f in input_files:
             cmd += ['-i', f]
             
-        cmd += ['-filter_complex', ";".join(filter_parts)]
-        cmd += ['-map', '0:v', '-map', '[a]']
+        cmd += ['-filter_complex', filter_complex]
+        cmd += ['-map', video_out, '-map', '[a]']
         cmd += ['-c:v', 'libx264', '-preset', 'fast', '-crf', '23']
         cmd += ['-c:a', 'aac', '-b:a', '192k']
         cmd += ['-shortest']
-        cmd += [temp_output]
+        cmd += [output_path]
         
-        subprocess.run(cmd, check=True)
-        print("✓ Audio mixed")
-        
-        # Step 2: Burn in subtitles (copy to simple path to avoid special chars)
-        if subtitle_path and os.path.exists(subtitle_path):
-            print("Burning in subtitles...")
-            import shutil
-            # Copy subtitle to simple temp path
-            simple_sub = str(self.config.temp_dir / "temp_subs.srt")
-            shutil.copy(subtitle_path, simple_sub)
-            
-            cmd2 = [
-                'ffmpeg', '-y',
-                '-i', temp_output,
-                '-vf', f"subtitles='{simple_sub}'",
-                '-c:a', 'copy',
-                output_path
-            ]
-            result = subprocess.run(cmd2, capture_output=True, text=True)
-            
-            if result.returncode == 0:
-                os.remove(temp_output)
-                os.remove(simple_sub)
-                print("✓ Subtitles burned in")
-            else:
-                print(f"⚠️ Subtitle burn-in failed: {result.stderr[:200]}")
-                os.rename(temp_output, output_path)
-        else:
-            os.rename(temp_output, output_path)
-            
-        print("✓ Video assembled successfully")
+        try:
+            subprocess.run(cmd, check=True)
+            print("✓ Video assembled with subtitles")
+        finally:
+            # Cleanup temp subtitle
+            if os.path.exists(temp_sub):
+                os.remove(temp_sub)
+
