@@ -157,7 +157,7 @@ class VideoEditor:
         font_path = self.config.get_font_path().replace('\\', '/')
         sub_path = subtitle_path.replace('\\', '/')
         
-        # Watermark filter - simplified without quotes
+        # Watermark filter - static position (simpler, more reliable)
         watermark_filter = (
             "drawtext="
             "text=ReelFrenzyX:"
@@ -166,8 +166,8 @@ class VideoEditor:
             "shadowcolor=black@0.15:"
             "shadowx=2:"
             "shadowy=2:"
-            "x='if(lt(mod(t\\,20)\\,10)\\, 50 + (mod(t\\,10)*90)\\, 950 - (mod(t\\,10)*90))':"
-            "y='if(lt(mod(t\\,16)\\,8)\\, 100 + (mod(t\\,8)*180)\\, 1540 - (mod(t\\,8)*180))':"
+            "x=50:"
+            "y=100:"
             f"fontfile={font_path}"
         )
         
