@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
                     "--engine", "edge", // Default to edge for now
                     "--language", language,
                     "--duration", duration.toString(),
-                    "--variations", "3" // Generate 3 variations by default
+                    "--variations", "1" // Generate 1 variation
                 ];
 
                 const pythonProcess = spawn("python", args, {

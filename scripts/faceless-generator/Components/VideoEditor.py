@@ -153,7 +153,9 @@ class VideoEditor:
     def assemble_final_video(self, video_path: str, tts_path: str, subtitle_path: str, music_path: str, output_path: str):
         print("Assembling final video...")
         
-        # Setup inputs
+        # Step 1: Mix audio first (no video filters)
+        temp_output = output_path.replace('.mp4', '_temp.mp4')
+        
         input_files = [video_path, tts_path]
         audio_inputs = ["[1:a]"]
         filter_parts = []
@@ -176,11 +178,30 @@ class VideoEditor:
             cmd += ['-i', f]
             
         cmd += ['-filter_complex', ";".join(filter_parts)]
-        cmd += ['-map', '0:v', '-map', '[a]']  # Use original video, mixed audio
-        cmd += ['-c:v', 'libx264', '-preset', 'medium', '-crf', '21']
+        cmd += ['-map', '0:v', '-map', '[a]']
+        cmd += ['-c:v', 'libx264', '-preset', 'fast', '-crf', '23']
         cmd += ['-c:a', 'aac', '-b:a', '192k']
-        cmd += ['-shortest']  # Match shortest stream
-        cmd += [output_path]
+        cmd += ['-shortest']
+        cmd += [temp_output]
         
         subprocess.run(cmd, check=True)
+        print("✓ Audio mixed")
+        
+        # Step 2: Burn in subtitles (uses -vf which handles paths better)
+        if subtitle_path and os.path.exists(subtitle_path):
+            print("Burning in subtitles...")
+            # Use shell=True with quoted path to handle special chars
+            sub_cmd = f'ffmpeg -y -i "{temp_output}" -vf "subtitles=\'{subtitle_path}\'" -c:a copy "{output_path}"'
+            result = subprocess.run(sub_cmd, shell=True, capture_output=True, text=True)
+            
+            if result.returncode == 0:
+                os.remove(temp_output)
+                print("✓ Subtitles burned in")
+            else:
+                # Fallback: just use temp as final
+                print(f"⚠️ Subtitle burn-in failed, using video without subs")
+                os.rename(temp_output, output_path)
+        else:
+            os.rename(temp_output, output_path)
+            
         print("✓ Video assembled successfully")
