@@ -187,19 +187,29 @@ class VideoEditor:
         subprocess.run(cmd, check=True)
         print("✓ Audio mixed")
         
-        # Step 2: Burn in subtitles (uses -vf which handles paths better)
+        # Step 2: Burn in subtitles (copy to simple path to avoid special chars)
         if subtitle_path and os.path.exists(subtitle_path):
             print("Burning in subtitles...")
-            # Use shell=True with quoted path to handle special chars
-            sub_cmd = f'ffmpeg -y -i "{temp_output}" -vf "subtitles=\'{subtitle_path}\'" -c:a copy "{output_path}"'
-            result = subprocess.run(sub_cmd, shell=True, capture_output=True, text=True)
+            import shutil
+            # Copy subtitle to simple temp path
+            simple_sub = str(self.config.temp_dir / "temp_subs.srt")
+            shutil.copy(subtitle_path, simple_sub)
+            
+            cmd2 = [
+                'ffmpeg', '-y',
+                '-i', temp_output,
+                '-vf', f"subtitles='{simple_sub}'",
+                '-c:a', 'copy',
+                output_path
+            ]
+            result = subprocess.run(cmd2, capture_output=True, text=True)
             
             if result.returncode == 0:
                 os.remove(temp_output)
+                os.remove(simple_sub)
                 print("✓ Subtitles burned in")
             else:
-                # Fallback: just use temp as final
-                print(f"⚠️ Subtitle burn-in failed, using video without subs")
+                print(f"⚠️ Subtitle burn-in failed: {result.stderr[:200]}")
                 os.rename(temp_output, output_path)
         else:
             os.rename(temp_output, output_path)
