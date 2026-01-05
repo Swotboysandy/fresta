@@ -153,24 +153,28 @@ class VideoEditor:
     def assemble_final_video(self, video_path: str, tts_path: str, subtitle_path: str, music_path: str, output_path: str):
         print("Assembling final video...")
         
-        # Prepare paths with proper escaping
-        font_path = self.config.get_font_path().replace('\\', '/').replace(':', r'\:')
-        sub_path = subtitle_path.replace('\\', '/').replace(':', r'\:')
+        # Convert Windows paths to forward slashes (FFmpeg accepts this)
+        font_path = self.config.get_font_path().replace('\\', '/')
+        sub_path = subtitle_path.replace('\\', '/')
         
-        # Watermark filter - use proper FFmpeg text escaping
+        # Watermark filter - simplified without quotes
         watermark_filter = (
             "drawtext="
-            "text=ReelFrenzyX:"  # No quotes needed for simple text
-            "fontsize=28:fontcolor=white@0.25:shadowcolor=black@0.15:shadowx=2:shadowy=2:"
+            "text=ReelFrenzyX:"
+            "fontsize=28:"
+            "fontcolor=white@0.25:"
+            "shadowcolor=black@0.15:"
+            "shadowx=2:"
+            "shadowy=2:"
             "x='if(lt(mod(t\\,20)\\,10)\\, 50 + (mod(t\\,10)*90)\\, 950 - (mod(t\\,10)*90))':"
             "y='if(lt(mod(t\\,16)\\,8)\\, 100 + (mod(t\\,8)*180)\\, 1540 - (mod(t\\,8)*180))':"
-            f"fontfile={font_path}"  # No quotes, already escaped
+            f"fontfile={font_path}"
         )
         
         # Setup inputs
         input_files = [video_path, tts_path]
         filter_complex_parts = [f"[0:v]{watermark_filter}[vwm]"]
-        audio_inputs = ["[1:a]"]  # TTS first
+        audio_inputs = ["[1:a]"]
         
         # Original Audio (Background)
         filter_complex_parts.append("[0:a]volume=0.15[orig]")
@@ -185,8 +189,8 @@ class VideoEditor:
         # Mix Audio
         filter_complex_parts.append(f"{''.join(audio_inputs)}amix=inputs={len(audio_inputs)}:duration=first:dropout_transition=2:normalize=0[a]")
         
-        # Add Subtitles (Burn in) - use filename parameter with proper escaping
-        filter_complex_parts.append(f"[vwm]subtitles=filename={sub_path}[vout]")
+        # Add Subtitles - use simple path with forward slashes
+        filter_complex_parts.append(f"[vwm]subtitles={sub_path}[vout]")
         
         cmd = ['ffmpeg', '-y']
         for f in input_files:
@@ -199,4 +203,5 @@ class VideoEditor:
         cmd += [output_path]
         
         subprocess.run(cmd, check=True)
+
 
