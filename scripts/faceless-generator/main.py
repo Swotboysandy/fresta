@@ -168,152 +168,117 @@ def download_youtube_subtitles(url: str) -> str:
 
 
 def rewrite_as_story(transcription: str, style: str = "documentary", language: str = "english", target_duration: int = 30) -> dict:
-    """Use Groq to create complete story with looping savage ending."""
-    print(f"[AI] Creating {target_duration}s story (Language: {language})...")
+    """Use Groq to create cinematic storytelling narration like a movie trailer."""
+    print(f"[AI] Creating {target_duration}s cinematic story (Language: {language})...")
     
     if not GROQ_API_KEY:
         raise Exception("GROQ_API_KEY not set")
     
     # Language instruction
     if language.lower() in ['hindi', 'hi', 'in']:
-        lang_instruction = "Conversational Hindi (Hinglish is okay for impact words)"
+        lang_instruction = "Conversational Hindi (Hinglish style - mix Hindi with impact English words)"
     else:
-        lang_instruction = "Simple Spoken English"
+        lang_instruction = "Simple, punchy English"
     
     # Dynamic word count based on target duration
-    # At +30% TTS speed: ~3 words/second
-    # Target: 28-35 second engaging videos
+    # Aim for ~6-7 words per second for detailed explanatory content
     if target_duration == 20:
-        target_words = 65  # ~20-22 seconds
+        target_words = 130  # ~6.5 w/s
     elif target_duration == 60:
-        target_words = 190  # ~55-65 seconds
+        target_words = 400  # ~6.7 w/s
     else:  # 30 seconds default
-        target_words = 95  # Target 28-35 seconds with good content
+        target_words = 200  # ~6.7 w/s for 30 sec - DETAILED explanatory content
     
-    prompt = f"""You are a RUTHLESS YouTube Shorts scripter. Your ONLY job: maximum retention in EXACTLY {target_duration} seconds.
+    prompt = f"""You are a POPULAR YOUTUBER creating engaging video narration. Sound like a REAL person talking to your audience!
 
-TASK: SUMMARIZE the video subtitles below into a {target_duration}-second viral narration.
+TASK: Create a {target_duration}-second YouTuber-style narration that:
+1. Starts with a HOOK to grab attention
+2. Explains the video content in an engaging way
+3. Talks TO the viewer like a friend
+4. Ends with a call-to-action (like, subscribe, comment)
 
-CRITICAL WORD LIMIT: EXACTLY {target_words} words. NOT MORE. Count them.
-If you write more than {target_words + 10} words, the video will be TOO LONG and FAIL.
+WORD TARGET: {target_words} words MINIMUM | {target_duration} seconds | {lang_instruction}
 
-TARGET: {target_words} words MAX | {target_duration} seconds | {lang_instruction}
-
-INPUT (YouTube Subtitles to summarize):
-{transcription[:6000]}
-
-═══════════════════════════════════════════════════════════════
-STYLE OVERRIDE (CRITICAL - FOLLOW EXACTLY):
-═══════════════════════════════════════════════════════════════
-✓ DO NOT write in first person. EVER.
-✓ DO NOT narrate as the subject.
-✓ Narrate like a viral Shorts storyteller observing events.
-✓ Refer to the subject as "this guy", "this streamer", "this kid", or by name.
-✓ Compress time aggressively. Skip setup, jump straight to danger.
-✓ Every sentence must raise stakes or curiosity.
-✓ Treat the subject like a character in a survival story.
-
-BAD EXAMPLES (NEVER DO THIS):
-❌ "I'm nervous."
-❌ "I'm holding the GoPro."
-❌ "I'm about to go underwater."
-❌ "I decided to try this."
-
-GOOD EXAMPLES (EMULATE THIS):
-✓ "This guy jumped into shark-infested water with thousands watching."
-✓ "One wrong move here ends the stream permanently."
-✓ "Chat was cheering. The sharks didn't care."
-✓ "This could've ended very badly."
+INPUT VIDEO CONTENT (What you're reacting to/explaining):
+{transcription[:8000]}
 
 ═══════════════════════════════════════════════════════════════
-BANNED (Delete on sight):
+YOUTUBER STYLE RULES:
 ═══════════════════════════════════════════════════════════════
-❌ First person: "I", "me", "my", "we", "us", "our"
-❌ Passive voice: "it was discovered" → "scientists discovered"
-❌ Filler transitions: "so", "now", "then", "also", "additionally"
-❌ Soft endings: "pretty interesting", "kind of cool"
-❌ Setup phrases: "in this video", "today we'll", "let me show you"
-❌ Action descriptions: "he puts on the camera" → "one mistake here, footage becomes evidence"
-❌ Chronological narration: skip boring parts, jump to drama
+✓ Start with a HOOK: "Yo guys!", "Okay so...", "You won't believe this!"
+✓ Talk TO the viewer: Use "you", "we", "guys", "bro"
+✓ Be ENERGETIC and conversational
+✓ React to the content: "This is crazy!", "Look at this!"
+✓ Ask rhetorical questions: "Can you believe that?"
+✓ End with CALL-TO-ACTION: "Smash that like button!", "Subscribe for more!"
+✓ Sound like a REAL YouTuber, not a robot narrator
+
+STRUCTURE FOR {target_duration} SECONDS:
+[0-5s]    HOOK - Grab attention! "Yo guys check this out!"
+[5-15s]   EXPLAIN - What's happening in this video
+[15-30s]  DETAILS - Go deeper, add your reactions, interesting facts
+[30-{target_duration}s] OUTRO - Wrap up + Call to action!
 
 ═══════════════════════════════════════════════════════════════
-REQUIRED (Non-negotiable):
+YOUTUBER PHRASES TO USE:
 ═══════════════════════════════════════════════════════════════
-✓ Third-person ONLY: "this guy", "this streamer", "he", "she", or name
-✓ Stakes in EVERY sentence: risk, consequence, or escalation
-✓ Outcomes, not actions: why it matters, what could go wrong
-✓ Pattern break every 3-5 seconds: change topic, reveal twist, ask question
-✓ At least ONE unresolved curiosity gap: tease but don't explain
-✓ Ending that creates FOMO or leaves them hanging
-✓ Specific numbers, names, facts (not vague descriptions)
-✓ Active voice ONLY
-✓ Compressed drama: cause → consequence, not step-by-step
+HOOKS:
+- "Yo guys, you NEED to see this!"
+- "Okay so I found this crazy video..."
+- "Bro, this is absolutely insane!"
+- "Wait till you see what happens next..."
+- "So I was scrolling and found THIS!"
+
+REACTIONS:
+- "This is actually insane!"
+- "Can you believe this?"
+- "Look at that! That's crazy!"
+- "I was NOT expecting that!"
+- "This changes everything!"
+
+CALL-TO-ACTIONS:
+- "Smash that like button if you enjoyed this!"
+- "Subscribe and hit the bell for more content like this!"
+- "Drop a comment - what do you think about this?"
+- "Follow for more crazy videos!"
+- "Share this with someone who needs to see it!"
 
 ═══════════════════════════════════════════════════════════════
-HOOK TEMPLATES (First sentence MUST use one):
+EXAMPLE (YouTuber Style):
 ═══════════════════════════════════════════════════════════════
-→ "This could've ended very badly."
-→ "People thought this was fake… until this happened."
-→ "Everyone in chat was cheering. They shouldn't have been."
-→ "This guy had no idea what he just started."
-→ "One mistake here, and the footage becomes evidence."
+"Yo guys, you have GOT to see this!
+
+So this dude decided to transform his entire backyard by himself, and honestly? The result is absolutely insane!
+
+He started with literally nothing - just dirt and weeds everywhere. But here's the crazy part - he did the whole thing for under two thousand dollars! Like, how is that even possible?
+
+Check out this patio area. Those stones? Found at a salvage yard. The pergola? Made from reclaimed wood. This is what happens when creativity meets determination!
+
+And the water feature at the end? That's my favorite part. It uses a recycling pump system so it costs basically nothing to run. 
+
+If this inspired you, smash that like button and subscribe for more incredible transformations! Drop a comment telling me what you would build in YOUR backyard!"
 
 ═══════════════════════════════════════════════════════════════
-STRUCTURE (Strict):
+QUALITY CHECK:
 ═══════════════════════════════════════════════════════════════
-[0-3s] HOOK (Warning-style, not introduction)
-→ Most shocking outcome. No context. No setup.
-→ Example: "This guy jumped into shark-infested waters… live… with zero backup."
-→ NOT: "I'm diving with sharks in South Africa and I'm nervous."
+1. Does it start with a HOOK? (Not just "This video shows...")
+2. Does it sound like a REAL YouTuber talking?
+3. Does it engage the viewer with "you", questions, reactions?
+4. Does it end with a CALL-TO-ACTION?
+5. Is it {target_words} words or more?
 
-[3-10s] BUILD TENSION (Compressed drama)
-→ Reveal stakes one by one
-→ Each sentence = new risk or consequence
-→ Example: "Chat was going wild. The sharks were circling. One wrong move."
-
-[10-20s] TWIST/CLIMAX (The thing they didn't expect)
-→ Reframe everything said before
-→ Example: "Then the camera cut out. For 47 seconds, nothing. Chat thought he was gone."
-
-[20-{target_duration}s] UNRESOLVED ENDING (Create FOMO)
-→ Leave them wanting more
-→ Example: "He survived. But what he saw down there… he won't talk about it."
-→ NOT: "So that's the story. Pretty crazy right?"
-
-═══════════════════════════════════════════════════════════════
-STORYTELLING CADENCE (Indian Shorts style):
-═══════════════════════════════════════════════════════════════
-→ Short sentences. Dramatic rhythm. Slightly informal.
-→ Example: "This guy thought it would be content. Sharks don't care about content. One slip, and this story ends differently."
-
-═══════════════════════════════════════════════════════════════
-QUALITY CHECK (Before submitting):
-═══════════════════════════════════════════════════════════════
-1. Any "I", "me", "my"? → FAIL. Rewrite in third person.
-2. Read each sentence. Does it add stakes or tension? If no → DELETE
-3. Count pattern breaks. Less than 3? → ADD MORE
-4. Check ending. Does it resolve everything? → REWRITE to leave gap
-5. Count words. Less than {target_words}? → FAIL (add more content)
-6. Any passive voice? → REWRITE in active voice
-7. Any action descriptions without stakes? → REWRITE to show consequences
+IMPORTANT: Sound like a REAL PERSON, not a documentary narrator!
 
 ═══════════════════════════════════════════════════════════════
 OUTPUT (JSON only):
 ═══════════════════════════════════════════════════════════════
 {{
-    "hook": "The opening line (must be a warning, not introduction)",
-    "sentences": ["Sentence 1", "Sentence 2", ...],
-    "narration": "Full script as one paragraph",
-    "word_count": actual_count,
-    "pattern_breaks": number_of_topic_shifts,
-    "curiosity_gaps": number_of_unresolved_questions,
-    "first_person_check": "PASS or FAIL (must be PASS)"
+    "topic": "What the video is about in 1 line",
+    "narration": "Full YouTuber-style narration - must be {target_words}+ words",
+    "sentences": ["Sentence 1", "Sentence 2", "Sentence 3", ...],
+    "hook": "The attention-grabbing opening line",
+    "cta": "The call-to-action at the end"
 }}
-
-REMEMBER: 
-- Diary entry = boring. Movie trailer = viral.
-- "I'm nervous" = skip. "This guy had no idea what he just started" = gold.
-- If it doesn't make them say "wait, what?" → it's not good enough.
 """
     
     url = "https://api.groq.com/openai/v1/chat/completions"
@@ -325,7 +290,7 @@ REMEMBER:
     payload = {
         "model": "llama-3.3-70b-versatile",
         "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.85,
+        "temperature": 0.85,  # Higher temp for creative storytelling
         "max_tokens": 2500
     }
     
@@ -341,9 +306,9 @@ REMEMBER:
         sentences = data.get('sentences', [])
         if not sentences:
             narration = data.get('narration', text)
-            # Split on sentence endings but keep longer segments
-            sentences = [s.strip() for s in re.split(r'(?<=[.!?।])\s+', narration) if s.strip() and len(s.strip()) > 5]
-        print(f"✓ Created narrative with {len(sentences)} segments")
+            # Split on line breaks and sentence endings for dramatic pacing
+            sentences = [s.strip() for s in re.split(r'[\n।.!?]+', narration) if s.strip() and len(s.strip()) > 3]
+        print(f"✓ Created cinematic story with {len(sentences)} segments")
         return {"narration": data.get('narration', ''), "sentences": sentences}
     
     return {"narration": text, "sentences": [text]}
@@ -525,24 +490,32 @@ def generate_tts_with_timestamps(sentences: list, output_path: str, voice: str =
                 cmd = [
                     'edge-tts',
                     '--voice', voice,
-                    '--rate', '+30%',
+                    '--rate', '+0%',
                     '--pitch', '+0Hz',
                     '--text', sentence,
                     '--write-media', temp_file
                 ]
-                subprocess.run(cmd, capture_output=True, check=True)
+                try:
+                    subprocess.run(cmd, capture_output=True, check=True, timeout=60)
+                except subprocess.TimeoutExpired:
+                    print(f"⚠️ Edge TTS timed out, retrying...")
+                    subprocess.run(cmd, capture_output=True, check=True, timeout=60)
         else:
             # Edge TTS
             temp_file = f"temp_tts_sentence_{session_id}_{i}.mp3"
             cmd = [
                 'edge-tts',
                 '--voice', voice,
-                '--rate', '+30%',
+                '--rate', '+0%',
                 '--pitch', '+0Hz',
                 '--text', sentence,
                 '--write-media', temp_file
             ]
-            subprocess.run(cmd, capture_output=True, check=True)
+            try:
+                subprocess.run(cmd, capture_output=True, check=True, timeout=60)
+            except subprocess.TimeoutExpired:
+                print(f"⚠️ Edge TTS timed out, retrying...")
+                subprocess.run(cmd, capture_output=True, check=True, timeout=60)
         
         # Get exact duration using ffprobe
         duration = get_audio_duration(temp_file)
@@ -649,7 +622,7 @@ def generate_tts(text: str, output_path: str, voice: str = "hi-IN-SwaraNeural") 
     cmd = [
         'edge-tts',
         '--voice', voice,
-        '--rate', '+20%',  # Engaging pace, still understandable
+        '--rate', '-5%',  # Slightly slower for longer audio
         '--pitch', '+0Hz',  # Normal pitch
         '--text', text,
         '--write-media', temp_tts
@@ -684,34 +657,38 @@ def get_audio_duration(audio_path: str) -> float:
     return float(result.stdout.strip())
 
 
-def create_video_cuts(video_path: str, duration: float, num_cuts: int, output_dir: str, time_offset: float = 0.0) -> list:
+def create_video_cuts(video_path: str, duration: float, num_cuts: int, output_dir: str, variation: int = 1, total_variations: int = 1) -> list:
     """Cut video into short clips (2-3 seconds each) for visual variety.
     
     Args:
-        time_offset: Fraction (0.0-1.0) to offset the clip selection range.
-                     0.0 = start of video, 0.5 = middle, 1.0 = end
+        variation: Which variation (1, 2, or 3)
+        total_variations: Total number of variations being generated
+        
+        Logic:
+        - 1 variation: Use entire video (0% - 100%)
+        - 2 variations: Video 1 = 0-50%, Video 2 = 50-100%
+        - 3 variations: Video 1 = 0-33%, Video 2 = 33-66%, Video 3 = 66-100%
     """
-    print(f"Creating {num_cuts} video cuts (offset: {time_offset*100:.0f}%)...")
-    
     video_duration = get_video_duration(video_path)
     clip_duration = duration / num_cuts
     
-    # Calculate the search range based on offset
-    # Divide video into 3 regions and use different region per variation
-    usable_duration = video_duration - clip_duration - 1
-    if usable_duration < 0:
-        usable_duration = video_duration / 2
+    # Calculate the segment of video to use based on variation
+    segment_fraction = 1.0 / total_variations
+    segment_start_fraction = (variation - 1) * segment_fraction
+    segment_end_fraction = variation * segment_fraction
     
-    # Apply offset to shift which part of video we select from
-    range_size = usable_duration * 0.6  # Use 60% of video per variation
-    range_start = time_offset * (usable_duration - range_size)
-    range_end = range_start + range_size
+    # Convert to actual times
+    range_start = segment_start_fraction * (video_duration - clip_duration)
+    range_end = segment_end_fraction * (video_duration - clip_duration)
+    range_size = range_end - range_start
+    
+    print(f"Creating {num_cuts} video cuts (using {segment_start_fraction*100:.0f}% - {segment_end_fraction*100:.0f}% of video)...")
     
     cuts = []
     for i in range(num_cuts):
-        # Spread cuts within the offset range
+        # Spread cuts within the segment range
         segment_size = range_size / num_cuts
-        start_time = range_start + (i * segment_size) + random.uniform(0, segment_size * 0.5)
+        start_time = range_start + (i * segment_size) + random.uniform(0, segment_size * 0.3)
         start_time = max(0, min(start_time, video_duration - clip_duration))
         
         output_path = os.path.join(output_dir, f"cut_{session_id}_{i:03d}.mp4")
@@ -723,7 +700,6 @@ def create_video_cuts(video_path: str, duration: float, num_cuts: int, output_di
             '-t', str(clip_duration),
             # More zoom: scale to 1400 width then crop to 1080 for tighter framing
             '-vf', 'scale=1400:-2,crop=1080:ih:(iw-1080)/2:0,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black',
-            '-vf', 'scale=1400:-2,crop=1080:ih:(iw-1080)/2:0,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black',
             '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '23',
             '-c:a', 'aac', '-b:a', '128k', # Keep audio
             output_path
@@ -732,7 +708,7 @@ def create_video_cuts(video_path: str, duration: float, num_cuts: int, output_di
         subprocess.run(cmd, capture_output=True, check=True)
         cuts.append(output_path)
     
-    print(f"✓ Created {len(cuts)} video cuts")
+    print(f"✓ Created {len(cuts)} video cuts from {segment_start_fraction*100:.0f}%-{segment_end_fraction*100:.0f}% of video")
     return cuts
 
 
@@ -844,7 +820,10 @@ def generate_word_level_subtitles(audio_path: str, output_path: str):
                     f.write(f"{format_time(start)} --> {format_time(end)}\n")
                     
                     # Check for color highlighting
-                    # Numbers in RED, emphasis words in YELLOW
+                    # Random vibrant colors for emphasis words
+                    highlight_colors = ["#00FF00", "#FF0000", "#FF69B4", "#00D4FF", "#FF8C00", "#FF1493", "#7FFF00"]
+                    import random as color_random
+                    
                     number_pattern = r'\b\d+\b'
                     
                     # Comprehensive list of high-impact words for viral content
@@ -872,12 +851,15 @@ def generate_word_level_subtitles(audio_path: str, output_path: str):
                     r')\b'
                     
                     if re.search(number_pattern, text):
-                        # Red for numbers
-                        f.write(f"<font color=\"#FF0000\">{text}</font>\n\n")
+                        # Random color for numbers
+                        color = color_random.choice(highlight_colors)
+                        f.write(f"<font color=\"{color}\">{text}</font>\n\n")
                     elif re.search(emphasis_pattern, text, re.IGNORECASE):
-                        # Yellow for emphasis words
-                        f.write(f"<font color=\"#FFFF00\">{text}</font>\n\n")
+                        # Random color for emphasis words
+                        color = color_random.choice(highlight_colors)
+                        f.write(f"<font color=\"{color}\">{text}</font>\n\n")
                     else:
+                        # White for normal text (default)
                         f.write(f"{text}\n\n")
                     counter += 1
                     
@@ -999,11 +981,12 @@ def assemble_final_video(
     """Final assembly: video + TTS + original audio (from video) + music + subtitles + watermark."""
     print("Assembling final video with watermark...")
     
-    # BOLD YELLOW subtitle style (like the reference image)
-    # BOLD YELLOW subtitle style (smaller size)
+    # WHITE subtitle style with black outline for better visibility
+    # PrimaryColour is in BGR format: &HBBGGRR  (White = &HFFFFFF)
+    # OutlineColour is black for contrast
     subtitle_style = (
-        "FontName=Impact,FontSize=12,PrimaryColour=&H00FFFF,OutlineColour=&H000000,"
-        "Outline=3,Shadow=0,MarginV=50,Alignment=2,Bold=1"
+        "FontName=Impact,FontSize=22,PrimaryColour=&HFFFFFF,OutlineColour=&H000000,"
+        "BackColour=&H40000000,Outline=3,Shadow=2,MarginV=60,Alignment=2,Bold=1"
     )
     
     # Copy subtitle to temp location with simple name
@@ -1091,14 +1074,15 @@ def main():
     use_coqui = sys.argv[7].lower() == "true" if len(sys.argv) > 7 else False
     reference_path = sys.argv[8] if len(sys.argv) > 8 else None
     if reference_path == "none": reference_path = None
+    video_count = int(sys.argv[9]) if len(sys.argv) > 9 else 1
     
-    # Generate 3 unique variations
-    NUM_VARIATIONS = 3
+    # Number of video variations to generate (1-3)
+    NUM_VARIATIONS = max(1, min(3, video_count))
     
     print(f"\n{'='*60}")
     print(f"AI FACELESS VIDEO GENERATOR v2")
     print(f"Fast-paced, no gaps, quick cuts")
-    print(f"🎬 BATCH MODE: Generating {NUM_VARIATIONS} unique variations")
+    print(f"🎬 BATCH MODE: Generating {NUM_VARIATIONS} unique variation(s)")
     if use_coqui: print(f"MODE: Voice Cloning (Coqui XTTS)")
     print(f"Language: {target_language} | Duration: {target_duration}s")
     print(f"{'='*60}\n")
@@ -1280,15 +1264,14 @@ Now write the narration. Return ONLY the narration text, nothing else:"""
         # Set random seed based on variation to get different clips from different parts
         random.seed(variation * 1000 + int(time.time()))
         
-        # Calculate time offset for this variation (0.0 = start, 0.5 = middle, 1.0 = end)
-        # Variation 1: clips from 0-60% of video
-        # Variation 2: clips from 20-80% of video  
-        # Variation 3: clips from 40-100% of video
-        time_offset = (variation - 1) / (NUM_VARIATIONS - 1) if NUM_VARIATIONS > 1 else 0.0
+        # Video segment logic based on number of variations:
+        # 1 variation: use 100% of video
+        # 2 variations: use 50% each (first half, second half)
+        # 3 variations: use 33% each (start, middle, end)
         
         num_cuts = max(len(sentences), int(tts_duration / 2.5))  # ~2.5 sec per cut
-        cuts = create_video_cuts(video_path, tts_duration, num_cuts, str(temp_dir), time_offset)
-        print(f"✓ Selected {len(cuts)} unique clips for variation {variation} (from {time_offset*100:.0f}% offset)")
+        cuts = create_video_cuts(video_path, tts_duration, num_cuts, str(temp_dir), variation, NUM_VARIATIONS)
+        print(f"✓ Selected {len(cuts)} unique clips for variation {variation}/{NUM_VARIATIONS}")
         print("PROGRESS: 70% - Video clips created")
         
         # Concatenate cuts and loop to match TTS duration

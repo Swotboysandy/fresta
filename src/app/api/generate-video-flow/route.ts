@@ -1,33 +1,131 @@
-"use server";
-
 import { NextRequest, NextResponse } from "next/server";
-import puppeteer from "puppeteer";
-import path from "path";
+import { spawn } from "child_process";
 import fs from "fs";
+import path from "path";
 
-// Directory to store downloaded videos
+// Directory for generated videos
 const VIDEOS_DIR = path.join(process.cwd(), "public", "generated-videos");
+const TEMP_DIR = path.join(process.cwd(), "public", "temp-images");
 
-// Ensure videos directory exists
-if (!fs.existsSync(VIDEOS_DIR)) {
-    fs.mkdirSync(VIDEOS_DIR, { recursive: true });
-}
-
-// Helper function to wait
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+// Ensure directories exist
+if (!fs.existsSync(VIDEOS_DIR)) fs.mkdirSync(VIDEOS_DIR, { recursive: true });
+if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true });
 
 interface GenerateVideoRequest {
     prompt: string;
     sceneId: number;
-    orientation?: "portrait" | "landscape";
+    duration?: number;
+    aspectRatio?: "9:16" | "16:9" | "1:1";
+}
+
+// Generate image using Pollinations (FREE, no API key needed)
+async function generateImage(prompt: string, aspectRatio: string): Promise<Buffer> {
+    let width = 576;
+    let height = 1024;
+
+    if (aspectRatio === "16:9") {
+        width = 1024;
+        height = 576;
+    } else if (aspectRatio === "1:1") {
+        width = 768;
+        height = 768;
+    }
+
+    const encodedPrompt = encodeURIComponent(prompt);
+    const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&seed=${Date.now()}&nologo=true&model=flux`;
+
+    console.log("[ImageGen] Fetching from Pollinations...");
+
+    const response = await fetch(pollinationsUrl, {
+        method: "GET",
+        headers: { "Accept": "image/png,image/jpeg,image/*" },
+    });
+
+    if (!response.ok) {
+        throw new Error(`Pollinations failed with status: ${response.status}`);
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+}
+
+// Create Ken Burns effect video from image using FFmpeg
+async function createKenBurnsVideo(
+    imagePath: string,
+    outputPath: string,
+    duration: number,
+    aspectRatio: string
+): Promise<void> {
+    return new Promise((resolve, reject) => {
+        // Determine output dimensions
+        let width = 1080;
+        let height = 1920;
+
+        if (aspectRatio === "16:9") {
+            width = 1920;
+            height = 1080;
+        } else if (aspectRatio === "1:1") {
+            width = 1080;
+            height = 1080;
+        }
+
+        // Random Ken Burns effect: zoom in, zoom out, or pan
+        const effects = [
+            // Zoom in slowly
+            `scale=8000:-1,zoompan=z='min(zoom+0.0015,1.5)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${duration * 25}:s=${width}x${height}:fps=25`,
+            // Zoom out slowly  
+            `scale=8000:-1,zoompan=z='if(lte(zoom,1.0),1.5,max(1.001,zoom-0.0015))':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${duration * 25}:s=${width}x${height}:fps=25`,
+            // Pan left to right
+            `scale=8000:-1,zoompan=z='1.3':x='if(lte(on,1),0,x+2)':y='ih/2-(ih/zoom/2)':d=${duration * 25}:s=${width}x${height}:fps=25`,
+            // Pan right to left
+            `scale=8000:-1,zoompan=z='1.3':x='if(lte(on,1),(iw/zoom)-${width},x-2)':y='ih/2-(ih/zoom/2)':d=${duration * 25}:s=${width}x${height}:fps=25`,
+        ];
+
+        const randomEffect = effects[Math.floor(Math.random() * effects.length)];
+
+        const args = [
+            '-y',
+            '-loop', '1',
+            '-i', imagePath,
+            '-vf', randomEffect,
+            '-c:v', 'libx264',
+            '-t', duration.toString(),
+            '-pix_fmt', 'yuv420p',
+            '-preset', 'fast',
+            outputPath
+        ];
+
+        console.log("[FFmpeg] Creating Ken Burns video...");
+
+        const ffmpeg = spawn('ffmpeg', args);
+
+        let stderr = '';
+        ffmpeg.stderr.on('data', (data) => {
+            stderr += data.toString();
+        });
+
+        ffmpeg.on('close', (code) => {
+            if (code === 0) {
+                console.log("[FFmpeg] Video created successfully");
+                resolve();
+            } else {
+                console.error("[FFmpeg] Error:", stderr);
+                reject(new Error(`FFmpeg exited with code ${code}`));
+            }
+        });
+
+        ffmpeg.on('error', (err) => {
+            reject(new Error(`FFmpeg spawn error: ${err.message}`));
+        });
+    });
 }
 
 export async function POST(request: NextRequest) {
-    let browser = null;
+    console.log("[VideoGen] API called - FREE Image + Ken Burns mode");
 
     try {
         const body: GenerateVideoRequest = await request.json();
-        const { prompt, sceneId } = body;
+        const { prompt, sceneId, duration = 5, aspectRatio = "9:16" } = body;
 
         if (!prompt) {
             return NextResponse.json(
@@ -36,284 +134,47 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        console.log(`Starting video generation for scene ${sceneId}...`);
-        console.log(`Prompt: ${prompt.substring(0, 100)}...`);
+        console.log(`[VideoGen] Scene ${sceneId}: "${prompt.substring(0, 60)}..."`);
+        console.log(`[VideoGen] Duration: ${duration}s, Aspect: ${aspectRatio}`);
 
-        // Use User's Default Chrome Profile
-        const userDataDir = path.join(process.env.LOCALAPPDATA || "", "Google", "Chrome", "User Data");
+        // Step 1: Generate image with Pollinations (FREE)
+        console.log("[VideoGen] Step 1: Generating image with Pollinations...");
+        const enhancedPrompt = `Cinematic scene: ${prompt}. High quality, dramatic lighting, movie-like, 4K, detailed.`;
+        const imageBuffer = await generateImage(enhancedPrompt, aspectRatio);
 
-        // Launch browser with user profile
-        console.log(`Launching Chrome with User Profile: ${userDataDir}`);
-        // Launch browser with user profile
-        console.log(`Launching Chrome with User Profile: ${userDataDir}`);
+        // Save temp image
+        const tempImagePath = path.join(TEMP_DIR, `scene-${sceneId}-${Date.now()}.png`);
+        fs.writeFileSync(tempImagePath, imageBuffer);
+        console.log(`[VideoGen] Image saved: ${tempImagePath}`);
 
-        try {
-            browser = await puppeteer.launch({
-                headless: false,
-                executablePath: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
-                userDataDir: userDataDir,
-                args: [
-                    "--no-sandbox",
-                    "--disable-setuid-sandbox",
-                    "--disable-blink-features=AutomationControlled",
-                    "--disable-infobars",
-                    "--window-size=1920,1080",
-                    "--start-maximized",
-                    "--disable-dev-shm-usage",
-                    "--no-first-run",
-                    "--disable-extensions",
-                ],
-                ignoreDefaultArgs: ["--enable-automation"],
-                defaultViewport: null,
-            });
-        } catch (launchError: any) {
-            console.error("Chrome launch error:", launchError);
-            if (launchError.message.includes("EBUSY") || launchError.message.includes("user data directory is already in use")) {
-                throw new Error("CHROME_OPEN_ERROR: Please close all Chrome windows and try again.");
-            }
-            throw launchError;
-        }
+        // Step 2: Create Ken Burns video with FFmpeg
+        console.log("[VideoGen] Step 2: Creating Ken Burns animation...");
+        const videoFileName = `scene-${sceneId}-${Date.now()}.mp4`;
+        const videoPath = path.join(VIDEOS_DIR, videoFileName);
 
-        // SMART TAB MANAGEMENT
-        // 1. Get all open pages (including restored session tabs)
-        const pages = await browser.pages();
+        await createKenBurnsVideo(tempImagePath, videoPath, duration, aspectRatio);
 
-        // 2. Look for an empty tab to use (about:blank or newtab)
-        let page = pages.find(p => p.url() === "about:blank" || p.url() === "chrome://newtab/");
+        // Cleanup temp image
+        try { fs.unlinkSync(tempImagePath); } catch { }
 
-        // 3. If no empty tab found, create a new one
-        if (!page) {
-            page = await browser.newPage();
-        }
+        // Return public URL
+        const videoUrl = `/generated-videos/${videoFileName}`;
+        console.log(`[VideoGen] ✅ Video ready: ${videoUrl}`);
 
-        // 4. Cleanup: Close ONLY other EMPTY tabs to reduce clutter
-        // We preserve tabs with content (like restored sessions) to avoid data loss
-        for (const p of pages) {
-            if (p !== page && (p.url() === "about:blank" || p.url() === "chrome://newtab/")) {
-                try { await p.close(); } catch (e) { /* ignore */ }
-            }
-        }
-
-        // Anti-detection measures
-        await page.evaluateOnNewDocument(() => {
-            Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
-            Object.defineProperty(navigator, 'plugins', {
-                get: () => [
-                    { name: 'Chrome PDF Plugin' },
-                    { name: 'Chrome PDF Viewer' },
-                    { name: 'Native Client' },
-                ],
-            });
-            Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
-            (window as unknown as Record<string, unknown>).chrome = { runtime: {} };
+        return NextResponse.json({
+            success: true,
+            videoUrl: videoUrl,
+            sceneId,
+            message: "Video generated successfully (Image + Ken Burns effect)",
         });
 
-        // Set realistic user agent
-        await page.setUserAgent(
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-        );
-
-        // Set up download handling
-        const client = await page.createCDPSession();
-        await client.send("Page.setDownloadBehavior", {
-            behavior: "allow",
-            downloadPath: VIDEOS_DIR,
-        });
-
-        // Navigate to Google Flow
-        console.log("Navigating to Google Flow...");
-        await page.goto("https://labs.google/fx/tools/flow", {
-            waitUntil: "networkidle2",
-            timeout: 60000,
-        });
-
-        await sleep(5000);
-
-        // Check if sign in is required
-        const pageUrl = page.url();
-        console.log("Current URL:", pageUrl);
-
-        if (pageUrl.includes("accounts.google.com") || pageUrl.includes("signin")) {
-            console.log("Sign in required. Please log in to your Google account...");
-            // Wait for user to sign in (up to 3 minutes)
-            let signInWait = 0;
-            while (signInWait < 180) {
-                const currentUrl = page.url();
-                if (currentUrl.includes("labs.google") || currentUrl.includes("flow")) {
-                    console.log("Sign-in successful!");
-                    break;
-                }
-                await sleep(1000);
-                signInWait++;
-            }
-            await sleep(3000);
-        }
-
-        // Wait for the page to fully load
-        await sleep(3000);
-
-        // Look for and click on the text input area
-        console.log("Looking for prompt input...");
-
-        const inputSelectors = [
-            'textarea',
-            '[contenteditable="true"]',
-            'input[type="text"]',
-            '[role="textbox"]',
-        ];
-
-        let inputFound = false;
-        for (const selector of inputSelectors) {
-            const elements = await page.$$(selector);
-            for (const element of elements) {
-                const isVisible = await element.isIntersectingViewport();
-                if (isVisible) {
-                    await element.click();
-                    await sleep(500);
-
-                    // Clear any existing text and type the prompt
-                    await page.keyboard.down('Control');
-                    await page.keyboard.press('KeyA');
-                    await page.keyboard.up('Control');
-                    await page.keyboard.type(prompt, { delay: 20 });
-
-                    console.log("Prompt entered successfully");
-                    inputFound = true;
-                    break;
-                }
-            }
-            if (inputFound) break;
-        }
-
-        if (!inputFound) {
-            console.log("Could not find input field, trying to type directly...");
-            await page.keyboard.type(prompt, { delay: 20 });
-        }
-
-        await sleep(1000);
-
-        // Look for and click the generate button
-        console.log("Looking for generate button...");
-
-        const buttonClicked = await page.evaluate(() => {
-            const buttons = Array.from(document.querySelectorAll('button'));
-            for (const btn of buttons) {
-                const text = btn.textContent?.toLowerCase() || '';
-                const label = btn.getAttribute('aria-label')?.toLowerCase() || '';
-                if (text.includes('generate') || text.includes('create') ||
-                    text.includes('submit') || label.includes('generate') ||
-                    text.includes('go') || text.includes('run')) {
-                    (btn as HTMLElement).click();
-                    return true;
-                }
-            }
-
-            // Try Enter key if no button found
-            return false;
-        });
-
-        if (buttonClicked) {
-            console.log("Generate button clicked");
-        } else {
-            console.log("Trying Enter key...");
-            await page.keyboard.press('Enter');
-        }
-
-        // Wait for video generation (can take 2-10 minutes)
-        console.log("Waiting for video generation...");
-        const maxWaitTime = 10 * 60 * 1000; // 10 minutes
-        const pollInterval = 5000;
-        const startTime = Date.now();
-        let videoUrl: string | null = null;
-
-        while (Date.now() - startTime < maxWaitTime) {
-            // Check for download button or video element
-            const hasDownload = await page.evaluate(() => {
-                const buttons = Array.from(document.querySelectorAll('button, a'));
-                for (const btn of buttons) {
-                    const text = btn.textContent?.toLowerCase() || '';
-                    const label = btn.getAttribute('aria-label')?.toLowerCase() || '';
-                    if (text.includes('download') || label.includes('download')) {
-                        (btn as HTMLElement).click();
-                        return true;
-                    }
-                }
-                return false;
-            });
-
-            if (hasDownload) {
-                console.log("Download button found and clicked");
-                await sleep(5000);
-
-                // Check for downloaded file
-                const files = fs.readdirSync(VIDEOS_DIR);
-                const recentFile = files
-                    .filter(f => f.endsWith('.mp4') || f.endsWith('.webm'))
-                    .map((f) => ({
-                        name: f,
-                        time: fs.statSync(path.join(VIDEOS_DIR, f)).mtime.getTime(),
-                    }))
-                    .sort((a, b) => b.time - a.time)[0];
-
-                if (recentFile && recentFile.time > startTime) {
-                    const newFileName = `scene-${sceneId}-${Date.now()}.mp4`;
-                    fs.renameSync(
-                        path.join(VIDEOS_DIR, recentFile.name),
-                        path.join(VIDEOS_DIR, newFileName)
-                    );
-                    videoUrl = `/generated-videos/${newFileName}`;
-                    console.log("Video downloaded:", videoUrl);
-                    break;
-                }
-            }
-
-            await sleep(pollInterval);
-            const elapsed = Math.round((Date.now() - startTime) / 1000);
-            console.log(`Still generating... (${elapsed}s elapsed)`);
-        }
-
-        // Close browser
-        await browser.close();
-        browser = null;
-
-        // Release lock (Not used in user profile mode)
-        // releaseLock();
-
-        if (videoUrl) {
-            return NextResponse.json({
-                success: true,
-                videoUrl,
-                sceneId,
-                message: "Video generated successfully",
-            });
-        } else {
-            return NextResponse.json(
-                {
-                    error: "Video generation timed out",
-                    message: "Please try again",
-                },
-                { status: 408 }
-            );
-        }
     } catch (error) {
-        console.error("Google Flow automation error:", error);
-
-        if (browser) {
-            try { await browser.close(); } catch { /* ignore */ }
-        }
-
-        // Attempt to release lock on error
-        try {
-            const lockPath = path.join(process.cwd(), ".chrome-automation-profile", "automation.lock");
-            if (fs.existsSync(lockPath)) {
-                fs.unlinkSync(lockPath);
-            }
-        } catch { /* ignore */ }
+        console.error("[VideoGen] Error:", error);
 
         return NextResponse.json(
             {
                 error: "Failed to generate video",
-                details: error instanceof Error ? error.message : "Unknown error",
+                details: error instanceof Error ? error.message : String(error),
             },
             { status: 500 }
         );

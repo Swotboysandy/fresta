@@ -7,7 +7,7 @@ import fs from "fs";
 
 export async function POST(request: NextRequest) {
     try {
-        const { url, style = "documentary", voice = "hi-IN-SwaraNeural", music = "cinematic", language = "english", duration = 30, useCoqui = false, cloneSample = null } = await request.json();
+        const { url, style = "documentary", voice = "hi-IN-SwaraNeural", music = "cinematic", language = "english", duration = 30, useCoqui = false, cloneSample = null, videoCount = 1 } = await request.json();
 
         if (!url) {
             return new Response(
@@ -64,7 +64,8 @@ export async function POST(request: NextRequest) {
                     language,
                     duration.toString(),
                     useCoqui ? "true" : "false",
-                    referencePath
+                    referencePath,
+                    videoCount.toString()
                 ];
 
                 const pythonProcess = spawn("python", args, {

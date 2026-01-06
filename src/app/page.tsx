@@ -63,8 +63,8 @@ const genres = [
 export default function Home() {
   const router = useRouter();
 
-  // Tab State
-  const [activeTab, setActiveTab] = useState<"story" | "faceless">("story");
+  // Tab State - Default to Faceless
+  const [activeTab, setActiveTab] = useState<"story" | "faceless">("faceless");
 
   // --- STORY STATE ---
   const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
@@ -88,6 +88,9 @@ export default function Home() {
   const [facelessCurrentStep, setFacelessCurrentStep] = useState("");
   const [useCoqui, setUseCoqui] = useState(false); // Coqui TTS / Voice Cloning Toggle
   const [cloneSample, setCloneSample] = useState<string | null>(null); // Base64 of uploaded reference audio
+  const [useAICaptions, setUseAICaptions] = useState(false); // Relevance AI Captions Toggle
+  const [captionColor, setCaptionColor] = useState("#FFFF00"); // Yellow by default
+  const [videoCount, setVideoCount] = useState(1); // Number of video variations to generate
 
   // --- HANDLERS ---
 
@@ -119,7 +122,10 @@ export default function Home() {
           language: facelessLanguage,
           duration: 30, // Always 30 seconds
           useCoqui,
-          cloneSample
+          cloneSample,
+          useAICaptions,
+          captionColor,
+          videoCount
         }),
       });
 
@@ -205,16 +211,6 @@ export default function Home() {
 
           <div className="flex gap-1 bg-white/5 p-1 rounded-lg border border-white/5">
             <button
-              onClick={() => setActiveTab("story")}
-              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === "story"
-                ? "bg-purple-600 text-white shadow-lg shadow-purple-900/20"
-                : "text-white/40 hover:text-white hover:bg-white/5"
-                }`}
-            >
-              <Sparkles className="w-4 h-4" />
-              Story Generator
-            </button>
-            <button
               onClick={() => setActiveTab("faceless")}
               className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === "faceless"
                 ? "bg-purple-600 text-white shadow-lg shadow-purple-900/20"
@@ -223,6 +219,16 @@ export default function Home() {
             >
               <Theater className="w-4 h-4" />
               Faceless Video
+            </button>
+            <button
+              onClick={() => setActiveTab("story")}
+              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === "story"
+                ? "bg-purple-600 text-white shadow-lg shadow-purple-900/20"
+                : "text-white/40 hover:text-white hover:bg-white/5"
+                }`}
+            >
+              <Sparkles className="w-4 h-4" />
+              Story Generator
             </button>
           </div>
         </div>
@@ -484,6 +490,24 @@ export default function Home() {
                   </div>
                 </div>
 
+                {/* Video Count Selector */}
+                <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5">
+                  <label className="block text-base font-semibold text-white/50 mb-4">Number of Variations</label>
+                  <div className="flex gap-3">
+                    {[1, 2, 3].map((count) => (
+                      <button
+                        key={count}
+                        onClick={() => setVideoCount(count)}
+                        disabled={isProcessingFaceless}
+                        className={`flex-1 p-3 rounded-lg border transition-all text-sm ${videoCount === count ? "border-purple-500/40 bg-purple-500/10 text-white" : "border-white/5 bg-black/20 hover:border-purple-500/20 text-white/70"}`}
+                      >
+                        <span className="text-lg block mb-1">{count === 1 ? "🎬" : count === 2 ? "🎬🎬" : "🎬🎬🎬"}</span>
+                        {count} {count === 1 ? "Video" : "Videos"}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-white/30 mt-2 text-center">More variations = longer generation time</p>
+                </div>
 
                 {/* Generate Button */}
                 <button

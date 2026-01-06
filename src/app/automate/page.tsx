@@ -299,13 +299,13 @@ function AutomationContent() {
         addLog(`✅ Voice generation complete`);
     };
 
-    // STEP 3: Generate Videos for all scenes using Google Flow
+    // STEP 3: Generate Videos for all scenes using Replicate API
     const generateAllVideos = async (scenesToProcess: Scene[]): Promise<void> => {
         setStatus(prev => ({ ...prev, video: "generating" }));
-        setCurrentStep("Generating videos with Google Flow...");
-        addLog(`🎬 Starting video generation with Google Flow (Veo AI)`);
-        addLog(`   📍 URL: https://labs.google/fx/tools/flow`);
-        addLog(`   💡 Tip: Sign in to Google if prompted in the browser`);
+        setCurrentStep("Generating videos with Replicate AI...");
+        addLog(`🎬 Starting video generation with Replicate (LTX Video)`);
+        addLog(`   ☁️ Cloud-based generation - no local storage needed`);
+        addLog(`   ⏱️ Each scene takes ~30-60 seconds`);
 
         for (let i = 0; i < scenesToProcess.length; i++) {
             if (isPaused) {
@@ -322,7 +322,7 @@ function AutomationContent() {
 
             const scene = scenesToProcess[i];
             setCurrentStep(`Generating video for Scene ${i + 1}/${scenesToProcess.length}...`);
-            addLog(`🎥 Scene ${i + 1}: "${scene.title}" - Opening Google Flow...`);
+            addLog(`🎥 Scene ${i + 1}: "${scene.title}" - Generating with Replicate...`);
 
             setSceneProgress(prev => prev.map(sp =>
                 sp.sceneId === scene.id ? { ...sp, videoStatus: "generating" } : sp
@@ -338,7 +338,7 @@ function AutomationContent() {
                     body: JSON.stringify({
                         prompt: videoPrompt,
                         sceneId: scene.id,
-                        orientation: orientation,
+                        aspectRatio: orientation === "portrait" ? "9:16" : "16:9",
                     }),
                 });
 
