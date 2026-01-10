@@ -168,8 +168,8 @@ def download_youtube_subtitles(url: str) -> str:
 
 
 def rewrite_as_story(transcription: str, style: str = "documentary", language: str = "english", target_duration: int = 30) -> dict:
-    """Use Groq to create cinematic storytelling narration like a movie trailer."""
-    print(f"[AI] Creating {target_duration}s cinematic story (Language: {language})...")
+    """Use Groq to create narration based on selected style."""
+    print(f"[AI] Creating {target_duration}s {style.upper()} narration (Language: {language})...")
     
     if not GROQ_API_KEY:
         raise Exception("GROQ_API_KEY not set")
@@ -180,104 +180,213 @@ def rewrite_as_story(transcription: str, style: str = "documentary", language: s
     else:
         lang_instruction = "Simple, punchy English"
     
-    # Dynamic word count based on target duration
-    # Aim for ~6-7 words per second for detailed explanatory content
+    # Dynamic sentence count based on duration
     if target_duration == 20:
-        target_words = 130  # ~6.5 w/s
+        target_sentences = 8
     elif target_duration == 60:
-        target_words = 400  # ~6.7 w/s
+        target_sentences = 14
     else:  # 30 seconds default
-        target_words = 200  # ~6.7 w/s for 30 sec - DETAILED explanatory content
+        target_sentences = 12
     
-    prompt = f"""You are a POPULAR YOUTUBER creating engaging video narration. Sound like a REAL person talking to your audience!
+    # ═══════════════════════════════════════════════════════════════
+    # STYLE-SPECIFIC PROMPTS
+    # ═══════════════════════════════════════════════════════════════
+    
+    if style.lower() == "documentary":
+        prompt = f"""Generate a short-form documentary script for a vertical video.
 
-TASK: Create a {target_duration}-second YouTuber-style narration that:
-1. Starts with a HOOK to grab attention
-2. Explains the video content in an engaging way
-3. Talks TO the viewer like a friend
-4. Ends with a call-to-action (like, subscribe, comment)
+STYLE RULES (STRICT - NO DEVIATION):
+- Tone: calm, factual, engaging
+- Sentences: short, simple, one idea per sentence
+- NO emojis, NO questions, NO slang
+- Tense: present tense only
+- NO second person ("you")
+- Neutral documentary tone
 
-WORD TARGET: {target_words} words MINIMUM | {target_duration} seconds | {lang_instruction}
+STRUCTURE:
+1. Visual hook - what it looks like
+2. Reality reveal - what it actually is
+3. Process explanation - how it's done
+4. Surprising comparison - cost, time, effort
+5. Details - 2-3 specific features
+6. Transformation summary
 
-INPUT VIDEO CONTENT (What you're reacting to/explaining):
+LENGTH: {target_sentences} sentences | {lang_instruction}
+
+INPUT VIDEO CONTENT:
 {transcription[:8000]}
 
-═══════════════════════════════════════════════════════════════
-YOUTUBER STYLE RULES:
-═══════════════════════════════════════════════════════════════
-✓ Start with a HOOK: "Yo guys!", "Okay so...", "You won't believe this!"
-✓ Talk TO the viewer: Use "you", "we", "guys", "bro"
-✓ Be ENERGETIC and conversational
-✓ React to the content: "This is crazy!", "Look at this!"
-✓ Ask rhetorical questions: "Can you believe that?"
-✓ End with CALL-TO-ACTION: "Smash that like button!", "Subscribe for more!"
-✓ Sound like a REAL YouTuber, not a robot narrator
+EXAMPLE:
+This looks like an empty backyard.
+But it's actually a complete outdoor living space.
+The transformation took six months of work.
+All done by one person.
+The patio stones came from a salvage yard.
+Total cost was under two thousand dollars.
+No contractors were hired.
+Every section serves a purpose.
+What looks like professional landscaping
+was built entirely by hand.
+And that's how dirt and weeds became a backyard oasis.
 
-STRUCTURE FOR {target_duration} SECONDS:
-[0-5s]    HOOK - Grab attention! "Yo guys check this out!"
-[5-15s]   EXPLAIN - What's happening in this video
-[15-30s]  DETAILS - Go deeper, add your reactions, interesting facts
-[30-{target_duration}s] OUTRO - Wrap up + Call to action!
-
-═══════════════════════════════════════════════════════════════
-YOUTUBER PHRASES TO USE:
-═══════════════════════════════════════════════════════════════
-HOOKS:
-- "Yo guys, you NEED to see this!"
-- "Okay so I found this crazy video..."
-- "Bro, this is absolutely insane!"
-- "Wait till you see what happens next..."
-- "So I was scrolling and found THIS!"
-
-REACTIONS:
-- "This is actually insane!"
-- "Can you believe this?"
-- "Look at that! That's crazy!"
-- "I was NOT expecting that!"
-- "This changes everything!"
-
-CALL-TO-ACTIONS:
-- "Smash that like button if you enjoyed this!"
-- "Subscribe and hit the bell for more content like this!"
-- "Drop a comment - what do you think about this?"
-- "Follow for more crazy videos!"
-- "Share this with someone who needs to see it!"
-
-═══════════════════════════════════════════════════════════════
-EXAMPLE (YouTuber Style):
-═══════════════════════════════════════════════════════════════
-"Yo guys, you have GOT to see this!
-
-So this dude decided to transform his entire backyard by himself, and honestly? The result is absolutely insane!
-
-He started with literally nothing - just dirt and weeds everywhere. But here's the crazy part - he did the whole thing for under two thousand dollars! Like, how is that even possible?
-
-Check out this patio area. Those stones? Found at a salvage yard. The pergola? Made from reclaimed wood. This is what happens when creativity meets determination!
-
-And the water feature at the end? That's my favorite part. It uses a recycling pump system so it costs basically nothing to run. 
-
-If this inspired you, smash that like button and subscribe for more incredible transformations! Drop a comment telling me what you would build in YOUR backyard!"
-
-═══════════════════════════════════════════════════════════════
-QUALITY CHECK:
-═══════════════════════════════════════════════════════════════
-1. Does it start with a HOOK? (Not just "This video shows...")
-2. Does it sound like a REAL YouTuber talking?
-3. Does it engage the viewer with "you", questions, reactions?
-4. Does it end with a CALL-TO-ACTION?
-5. Is it {target_words} words or more?
-
-IMPORTANT: Sound like a REAL PERSON, not a documentary narrator!
-
-═══════════════════════════════════════════════════════════════
 OUTPUT (JSON only):
-═══════════════════════════════════════════════════════════════
 {{
-    "topic": "What the video is about in 1 line",
-    "narration": "Full YouTuber-style narration - must be {target_words}+ words",
-    "sentences": ["Sentence 1", "Sentence 2", "Sentence 3", ...],
-    "hook": "The attention-grabbing opening line",
-    "cta": "The call-to-action at the end"
+    "topic": "What the video is about",
+    "narration": "Full script - plain text",
+    "sentences": ["Sentence 1.", "Sentence 2.", ...],
+    "transformation": "Final transformation line"
+}}
+"""
+    
+    elif style.lower() == "storytelling":
+        prompt = f"""Generate an engaging storytelling narrative script.
+
+STYLE RULES:
+- Tone: warm, narrative, like telling a story to a friend
+- Build a narrative arc with beginning, middle, end
+- Create emotional connection
+- Use "this", "here", "that" to point at visuals
+- NO questions, NO emojis
+- Third person narration
+
+STRUCTURE:
+1. Opening hook - draw them into the story
+2. Set the scene - who, what, where
+3. The journey - what happened, challenges faced
+4. The turning point - key moment
+5. Resolution - how it ended
+6. Lesson or takeaway
+
+LENGTH: {target_sentences} sentences | {lang_instruction}
+
+INPUT VIDEO CONTENT:
+{transcription[:8000]}
+
+EXAMPLE:
+It all started with a simple idea.
+One person decided to transform their space completely.
+For months, the work continued day after day.
+Every piece was placed with intention.
+There were setbacks along the way.
+But the vision never changed.
+Slowly, the transformation took shape.
+What once seemed impossible became real.
+This is what patience and dedication look like.
+And the result speaks for itself.
+
+OUTPUT (JSON only):
+{{
+    "topic": "What the story is about",
+    "narration": "Full script - storytelling format",
+    "sentences": ["Sentence 1.", "Sentence 2.", ...],
+    "lesson": "The takeaway or lesson"
+}}
+"""
+    
+    elif style.lower() == "educational":
+        prompt = f"""Generate an educational explainer script.
+
+STYLE RULES:
+- Tone: informative, clear, helpful
+- Explain concepts simply
+- Share facts and knowledge
+- Use "here's how", "this works by", "the reason is"
+- NO questions in narration
+- Third person, factual
+
+STRUCTURE:
+1. Topic introduction - what this is about
+2. Key concept - the main thing to understand
+3. How it works - step by step explanation
+4. Why it matters - practical importance
+5. Interesting fact - something memorable
+6. Summary - key takeaway
+
+LENGTH: {target_sentences} sentences | {lang_instruction}
+
+INPUT VIDEO CONTENT:
+{transcription[:8000]}
+
+EXAMPLE:
+This is how modern construction works.
+The process begins with careful planning.
+Each material is selected for a specific purpose.
+The foundation provides structural support.
+Layers are added in a precise sequence.
+Timing is critical at every stage.
+Temperature and humidity affect the outcome.
+This method has been refined over decades.
+The result is stronger than traditional approaches.
+Understanding the process reveals the complexity behind simple structures.
+
+OUTPUT (JSON only):
+{{
+    "topic": "What this teaches",
+    "narration": "Full script - educational format",
+    "sentences": ["Sentence 1.", "Sentence 2.", ...],
+    "key_fact": "Most interesting fact shared"
+}}
+"""
+    
+    elif style.lower() == "dramatic":
+        prompt = f"""Generate a dramatic, cinematic narrative script like a movie trailer.
+
+STYLE RULES:
+- Tone: intense, suspenseful, powerful
+- Short punchy sentences for impact
+- Build tension and drama
+- Use dramatic pauses (line breaks)
+- Create a sense of scale and importance
+- NO emojis, minimal questions
+- Third person, epic tone
+
+STRUCTURE:
+1. Hook - dramatic opening
+2. Setup - establish the situation
+3. Rising tension - escalate the stakes
+4. Climax - the biggest moment
+5. Impact - what it means
+6. Powerful ending line
+
+LENGTH: {target_sentences} sentences | {lang_instruction}
+
+INPUT VIDEO CONTENT:
+{transcription[:8000]}
+
+EXAMPLE:
+Nobody thought it was possible.
+But one person had a vision.
+When others said stop, they kept going.
+Day after day. Week after week.
+The work was relentless.
+Every detail mattered.
+Every choice had consequences.
+Then came the moment of truth.
+What stood before them was nothing short of remarkable.
+This is what happens when determination meets skill.
+Against all odds, the impossible became reality.
+
+OUTPUT (JSON only):
+{{
+    "topic": "What the video is about",
+    "narration": "Full script - dramatic format",
+    "sentences": ["Sentence 1.", "Sentence 2.", ...],
+    "climax": "The most dramatic moment"
+}}
+"""
+    
+    else:
+        # Default to documentary if unknown style
+        prompt = f"""Generate a short documentary-style narration for this video content.
+Length: {target_sentences} sentences | {lang_instruction}
+
+INPUT: {transcription[:8000]}
+
+OUTPUT (JSON only):
+{{
+    "topic": "Topic",
+    "narration": "Full narration",
+    "sentences": ["Sentence 1.", "Sentence 2.", ...]
 }}
 """
     
@@ -389,11 +498,12 @@ Return JSON only:
     }
 
 
-def generate_tts_with_timestamps(sentences: list, output_path: str, voice: str = "hi-IN-SwaraNeural", use_coqui: bool = False, reference_path: str = None, language: str = "english") -> tuple:
+def generate_tts_with_timestamps(sentences: list, output_path: str, voice: str = "hi-IN-SwaraNeural", use_coqui: bool = False, reference_path: str = None, language: str = "english", target_duration: float = 30.0) -> tuple:
     """Generate TTS sentence-by-sentence and track exact timestamps.
+    STRICTLY enforces target_duration by adjusting tempo.
     Returns: (final_audio_path, list of (sentence, start_time, end_time, duration))
     """
-    print(f"Generating TTS with real timestamps... (Voice: {voice})")
+    print(f"Generating TTS with real timestamps... (Voice: {voice}, Target: {target_duration}s)")
     
     sentence_audio_files = []
     sentence_timestamps = []
@@ -465,8 +575,9 @@ def generate_tts_with_timestamps(sentences: list, output_path: str, voice: str =
                     "voice": {"languageCode": "en-US", "name": google_voice_name},
                     "audioConfig": {
                         "audioEncoding": "MP3",
-                        "speakingRate": 1.2,
-                        "pitch": 0.0
+                        "speakingRate": 1.4,  # Faster to fit 30s naturally
+                        "pitch": 1.0,  # Slight pitch for character (not too high)
+                        "volumeGainDb": 4.0  # Louder voice
                     }
                 }
                 
@@ -490,8 +601,9 @@ def generate_tts_with_timestamps(sentences: list, output_path: str, voice: str =
                 cmd = [
                     'edge-tts',
                     '--voice', voice,
-                    '--rate', '+0%',
-                    '--pitch', '+0Hz',
+                    '--rate', '+10%',  # Slightly faster for more energy
+                    '--pitch', '+5Hz',  # Higher pitch for more character
+                    '--volume', '+20%',  # Louder voice
                     '--text', sentence,
                     '--write-media', temp_file
                 ]
@@ -501,13 +613,14 @@ def generate_tts_with_timestamps(sentences: list, output_path: str, voice: str =
                     print(f"⚠️ Edge TTS timed out, retrying...")
                     subprocess.run(cmd, capture_output=True, check=True, timeout=60)
         else:
-            # Edge TTS
+            # Edge TTS with louder, more characterized voice
             temp_file = f"temp_tts_sentence_{session_id}_{i}.mp3"
             cmd = [
                 'edge-tts',
                 '--voice', voice,
-                '--rate', '+0%',
-                '--pitch', '+0Hz',
+                '--rate', '+20%',  # Faster to fit 30s naturally
+                '--pitch', '+3Hz',  # Slight pitch for character (not too high)
+                '--volume', '+25%',  # Louder voice
                 '--text', sentence,
                 '--write-media', temp_file
             ]
@@ -534,20 +647,69 @@ def generate_tts_with_timestamps(sentences: list, output_path: str, voice: str =
         sentence_audio_files.append(temp_file)
         current_time = end_time
     
-    # Concatenate all audio files
+    # Concatenate all audio files WITHOUT gaps
     print(f"Concatenating {len(sentence_audio_files)} audio segments...")
     concat_list = f"concat_audio_{session_id}.txt"
     with open(concat_list, 'w') as f:
         for audio_file in sentence_audio_files:
             f.write(f"file '{audio_file}'\n")
     
-    cmd = [
-        'ffmpeg', '-y', '-f', 'concat', '-safe', '0',
-        '-i', concat_list,
-        '-c', 'copy',
-        output_path
-    ]
-    subprocess.run(cmd, capture_output=True, check=True)
+    # First concatenate without gaps
+    temp_concat = f"temp_concat_{session_id}.mp3"
+    try:
+        # Try with silence removal
+        cmd = [
+            'ffmpeg', '-y', '-f', 'concat', '-safe', '0',
+            '-i', concat_list,
+            '-af', 'silenceremove=start_periods=1:start_silence=0.1:start_threshold=-50dB:stop_periods=-1:stop_silence=0.1:stop_threshold=-50dB',
+            '-c:a', 'libmp3lame', '-b:a', '192k',
+            temp_concat
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            raise Exception(f"Silence removal failed: {result.stderr}")
+    except Exception as e:
+        print(f"⚠️ Silence removal failed ({e}), concatenating without it...")
+        # Fallback: simple concatenation
+        cmd = [
+            'ffmpeg', '-y', '-f', 'concat', '-safe', '0',
+            '-i', concat_list,
+            '-c:a', 'libmp3lame', '-b:a', '192k',
+            temp_concat
+        ]
+        subprocess.run(cmd, capture_output=True, check=True)
+    
+    # Get actual duration after concatenation
+    actual_duration = get_audio_duration(temp_concat)
+    print(f"Audio duration: {actual_duration:.2f}s (target: {target_duration}s)")
+    
+    # NO TEMPO STRETCHING - it makes voice sound weird!
+    # Just boost volume and use natural duration
+    try:
+        cmd = [
+            'ffmpeg', '-y', '-i', temp_concat,
+            '-af', 'volume=1.8',  # Boost volume 80% for clarity
+            '-c:a', 'libmp3lame', '-b:a', '192k',
+            output_path
+        ]
+        subprocess.run(cmd, capture_output=True, check=True)
+        os.remove(temp_concat)
+    except Exception as e:
+        print(f"⚠️ Volume boost failed ({e}), using original audio...")
+        # Last resort: just copy
+        shutil.copy(temp_concat, output_path)
+        os.remove(temp_concat)
+    
+    # Show duration difference
+    if abs(actual_duration - target_duration) > 2.0:
+        print(f"⚠️ Audio is {actual_duration:.1f}s (target was {target_duration}s)")
+        print(f"   Tip: Adjust script length to get closer to target")
+    else:
+        print(f"✓ Audio duration is close to target ({actual_duration:.1f}s vs {target_duration}s)")
+    
+    # Verify final duration
+    final_duration = get_audio_duration(output_path)
+    print(f"✓ TTS generated: {final_duration:.2f}s (target: {target_duration}s) with {len(sentence_timestamps)} segments")
     
     # Cleanup
     os.remove(concat_list)
@@ -555,8 +717,13 @@ def generate_tts_with_timestamps(sentences: list, output_path: str, voice: str =
         if os.path.exists(audio_file):
             os.remove(audio_file)
     
-    total_duration = current_time
-    print(f"✓ TTS generated: {total_duration:.1f}s with {len(sentence_timestamps)} segments")
+    # Update timestamps to reflect actual final duration
+    if sentence_timestamps:
+        time_scale = final_duration / current_time if current_time > 0 else 1.0
+        for ts in sentence_timestamps:
+            ts['start'] *= time_scale
+            ts['end'] *= time_scale
+            ts['duration'] *= time_scale
     
     return output_path, sentence_timestamps
 
@@ -672,24 +839,45 @@ def create_video_cuts(video_path: str, duration: float, num_cuts: int, output_di
     video_duration = get_video_duration(video_path)
     clip_duration = duration / num_cuts
     
+    # Use almost ALL frames - only skip very start (2%) and very end (2%)
+    # Usable range is 2% to 98% of the video for maximum coverage
+    usable_start = video_duration * 0.02  # Minimal skip at start
+    usable_end = video_duration * 0.98    # Minimal skip at end
+    usable_duration = usable_end - usable_start
+    
     # Calculate the segment of video to use based on variation
     segment_fraction = 1.0 / total_variations
     segment_start_fraction = (variation - 1) * segment_fraction
     segment_end_fraction = variation * segment_fraction
     
-    # Convert to actual times
-    range_start = segment_start_fraction * (video_duration - clip_duration)
-    range_end = segment_end_fraction * (video_duration - clip_duration)
+    # Convert to actual times within usable range
+    range_start = usable_start + (segment_start_fraction * usable_duration)
+    range_end = usable_start + (segment_end_fraction * usable_duration)
     range_size = range_end - range_start
     
-    print(f"Creating {num_cuts} video cuts (using {segment_start_fraction*100:.0f}% - {segment_end_fraction*100:.0f}% of video)...")
+    print(f"Creating {num_cuts} video cuts (using {2 + segment_start_fraction*96:.0f}% - {2 + segment_end_fraction*96:.0f}% of video)...")
     
     cuts = []
+    
+    # IMPROVED: Distribute cuts evenly from start to end (Linspace style)
+    # This ensures the last clip is actually near the end of the video segment
+    if num_cuts > 1:
+        step = (range_size - clip_duration) / (num_cuts - 1)
+    else:
+        step = 0
+        
     for i in range(num_cuts):
-        # Spread cuts within the segment range
-        segment_size = range_size / num_cuts
-        start_time = range_start + (i * segment_size) + random.uniform(0, segment_size * 0.3)
-        start_time = max(0, min(start_time, video_duration - clip_duration))
+        # Calculate start time using linear spacing
+        if num_cuts > 1:
+            base_time = range_start + (i * step)
+        else:
+            base_time = range_start + (range_size / 2) # Center single cut
+            
+        # Add small random jitter but keep it ordered (±10% of step)
+        jitter = random.uniform(-step * 0.1, step * 0.1) if step > 0 else 0
+        
+        start_time = base_time + jitter
+        start_time = max(usable_start, min(start_time, usable_end - clip_duration))
         
         output_path = os.path.join(output_dir, f"cut_{session_id}_{i:03d}.mp4")
         
@@ -708,7 +896,7 @@ def create_video_cuts(video_path: str, duration: float, num_cuts: int, output_di
         subprocess.run(cmd, capture_output=True, check=True)
         cuts.append(output_path)
     
-    print(f"✓ Created {len(cuts)} video cuts from {segment_start_fraction*100:.0f}%-{segment_end_fraction*100:.0f}% of video")
+    print(f"✓ Created {len(cuts)} video cuts (2%-98% range, using almost all frames)")
     return cuts
 
 
@@ -1166,8 +1354,20 @@ def main():
         
         # Get subtitle segment as CONTEXT (not final script)
         context_sentences = sentences_all[start_idx:end_idx]
-        context_text = '. '.join(context_sentences[:30])  # Use first 30 sentences as context
         
+        # IMPROVED: Sample context from the ENTIRE segment (start, middle, end)
+        # Instead of just taking the first 30 sentences (which misses the end of long videos)
+        MAX_CONTEXT_SENTENCES = 40
+        if len(context_sentences) > MAX_CONTEXT_SENTENCES:
+            # Uniformly sample evenly spaced sentences
+            step = len(context_sentences) // MAX_CONTEXT_SENTENCES
+            if step < 1: step = 1
+            sampled_sentences = context_sentences[::step][:MAX_CONTEXT_SENTENCES]
+            context_text = '. '.join(sampled_sentences)
+            print(f"Sampling {len(sampled_sentences)} sentences from entire video/segment for context")
+        else:
+            context_text = '. '.join(context_sentences)
+            
         print(f"Using {segment_name} as context for AI commentary")
         
         # Generate third-person explanatory narration using Groq
@@ -1183,7 +1383,7 @@ def main():
                     "model": "llama-3.3-70b-versatile",
                     "messages": [{
                         "role": "user",
-                        "content": f"""Based on this video transcript excerpt, create a SHORT third-person narration that EXPLAINS what's happening.
+                        "content": f"""Based on this video transcript excerpt (which samples the full video), create a SHORT third-person narration that EXPLAINS what's happening.
 
 CONTEXT FROM VIDEO:
 {context_text}
@@ -1196,9 +1396,10 @@ RULES (VERY IMPORTANT):
 ✅ EXPLAIN the moment/situation
 ✅ Use third-person perspective
 ✅ Be informative and neutral
-✅ 3-4 sentences ONLY
-✅ 12-20 seconds when spoken (60-80 words MAX)
+✅ 6-8 sentences for FULL 30 seconds
+✅ 25-30 seconds when spoken (100-120 words TARGET)
 ✅ Start with: "This is from {original_title.split('|')[0].strip()}"
+✅ Be detailed and descriptive to fill time naturally
 
 EXAMPLE STYLE:
 "This is from Speed. This moment caught everyone off guard. Speed didn't realize how fast the situation escalated, and that reaction is exactly why this clip went viral."
@@ -1206,7 +1407,7 @@ EXAMPLE STYLE:
 Now write the narration. Return ONLY the narration text, nothing else:"""
                     }],
                     "temperature": 0.7,
-                    "max_tokens": 150
+                    "max_tokens": 300
                 },
                 timeout=15
             ).json()
@@ -1220,9 +1421,16 @@ Now write the narration. Return ONLY the narration text, nothing else:"""
             sentences = narration.split('. ')
             sentences = [s.strip() for s in sentences if s.strip()]
             
-            # Hard limit: Maximum 4 sentences
-            if len(sentences) > 4:
-                sentences = sentences[:4]
+            # Ensure we have enough content for 30 seconds
+            # Aim for 100-120 words (about 6-8 sentences)
+            word_count = len(narration.split())
+            if word_count < 80:
+                print(f"⚠️ Script too short ({word_count} words), regenerating with more detail...")
+                # Request longer version
+                # For now, just use what we have
+            elif len(sentences) > 10:
+                # Cap at 10 sentences max
+                sentences = sentences[:10]
                 narration = '. '.join(sentences)
             
             print(f"✓ Generated {len(sentences)} sentence commentary")
@@ -1245,7 +1453,7 @@ Now write the narration. Return ONLY the narration text, nothing else:"""
         print(f"Generated script: {len(narration.split())} words in {len(sentences)} sentences")
         
         tts_path = str(temp_dir / f"tts_{session_id}.mp3")
-        tts_path, sentence_timestamps = generate_tts_with_timestamps(sentences, tts_path, voice, use_coqui, reference_path, target_language)
+        tts_path, sentence_timestamps = generate_tts_with_timestamps(sentences, tts_path, voice, use_coqui, reference_path, target_language, target_duration)
         
         tts_duration = sentence_timestamps[-1]['end'] if sentence_timestamps else 0
         print(f"TTS Audio Duration: {tts_duration:.1f}s (from real timestamps)")
@@ -1293,13 +1501,20 @@ Now write the narration. Return ONLY the narration text, nothing else:"""
         print("Step 6/6: Final assembly...")
         music_dir = Path(__file__).parent.parent.parent / "public" / "music"
         
-        # Use soft-piano music (loops automatically if needed)
-        music_file = music_dir / "soft-piano.mp3"
-        music_path = str(music_file) if music_file.exists() else None
+        # Try the selected music mood first
+        music_path = None
+        if music_mood and music_mood != "none":
+            # Try mp3 first, then m4a
+            for ext in [".mp3", ".m4a"]:
+                music_file = music_dir / f"{music_mood}{ext}"
+                if music_file.exists():
+                    music_path = str(music_file)
+                    print(f"✓ Using music: {music_mood}{ext}")
+                    break
         
-        if not music_path:
-            print("⚠️ Soft-piano music not found, trying default...")
-            music_file = music_dir / f"{music_mood}.mp3"
+        if not music_path and music_mood != "none":
+            print(f"⚠️ Music '{music_mood}' not found, trying soft-piano...")
+            music_file = music_dir / "soft-piano.mp3"
             music_path = str(music_file) if music_file.exists() else None
         
         final_output = output_dir / f"faceless_{session_id}_v{variation}.mp4"
